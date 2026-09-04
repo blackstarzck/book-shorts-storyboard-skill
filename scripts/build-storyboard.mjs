@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateStoryboard } from './lib/validate.mjs';
+import { resolveProfile, BUILTIN_PROFILES } from './lib/profile.mjs';
 import { renderH3Prompt } from './lib/render-h3.mjs';
 import { renderPanelPromptsText } from './lib/render-panels.mjs';
 import { renderAss } from './lib/render-ass.mjs';
@@ -24,19 +25,32 @@ const BOM = String.fromCharCode(0xfeff); // UTF-8 BOM
 
 const args = process.argv.slice(2);
 // --panel-cmd 는 값을 하나 먹는다. `--panel-cmd=…` 형태도 받는다.
-const panelCmdIdx = args.findIndex((a) => a === '--panel-cmd' || a.startsWith('--panel-cmd='));
-const panelCmd = panelCmdIdx === -1
-  ? undefined
-  : (args[panelCmdIdx].includes('=') ? args[panelCmdIdx].split('=').slice(1).join('=') : args[panelCmdIdx + 1]);
-const consumed = new Set(panelCmdIdx === -1 ? [] : [panelCmdIdx, panelCmdIdx + 1]);
+const consumed = new Set();
+/** 값을 하나 먹는 옵션. `--opt 값` 과 `--opt=값` 둘 다 받는다. */
+function valueOption(name) {
+  const i = args.findIndex((a) => a === name || a.startsWith(`${name}=`));
+  if (i === -1) return undefined;
+  consumed.add(i);
+  if (args[i].includes('=')) return args[i].split('=').slice(1).join('=');
+  consumed.add(i + 1);
+  return args[i + 1];
+}
+const panelCmd = valueOption('--panel-cmd');
+const profileArg = valueOption('--profile');
 const flags = new Set(args.filter((a, i) => a.startsWith('--') && !consumed.has(i)));
 const dirArg = args.find((a, i) => !a.startsWith('--') && !consumed.has(i));
 
 if (!dirArg) {
-  console.error('사용: node build-storyboard.mjs <출력 디렉터리> [--panels] [--force-panels] [--no-png] [--panel-cmd <명령>]');
+  console.error('사용: node build-storyboard.mjs <출력 디렉터리> [옵션]');
   console.error('  <출력 디렉터리>/storyboard.json 을 읽어 산출물을 같은 폴더에 쓴다.');
-  console.error('  --panel-cmd  콘티 패널을 만들 CLI 명령 템플릿. {prompt} 자리에 지시문이 들어간다.');
-  console.error('               생략하면 codex 프리셋. 환경변수 BOOK_SHORTS_PANEL_CMD 로도 지정한다.');
+  console.error('');
+  console.error('  --no-png            콘티 시트 PNG 캡처를 건너뛴다');
+  console.error('  --panels            콘티 패널 이미지를 생성한다 (패널당 1~2분)');
+  console.error('  --force-panels      이미 있는 패널도 다시 만든다');
+  console.error('  --panel-cmd <명령>   패널을 만들 CLI 템플릿. {prompt} 자리에 지시문이 들어간다.');
+  console.error('                      생략하면 codex 프리셋. 환경변수 BOOK_SHORTS_PANEL_CMD 로도 지정.');
+  console.error(`  --profile <이름|경로> 자막 좌표 프로파일. 내장: ${Object.keys(BUILTIN_PROFILES).join(', ')}`);
+  console.error('                      생략하면 storyboard.json 의 delivery 필드, 그것도 없으면 기본값.');
   process.exit(2);
 }
 
@@ -55,12 +69,20 @@ try {
   process.exit(2);
 }
 
+let profile;
+try {
+  profile = resolveProfile({ cli: profileArg, storyboard: sb });
+} catch (e) {
+  console.error(e.message);
+  process.exit(2);
+}
+
 const evidence = JSON.parse(readFileSync(join(SKILL_ROOT, 'references', 'evidence.json'), 'utf8'));
 const template = readFileSync(join(SKILL_ROOT, 'templates', 'contisheet.html'), 'utf8');
 const write = (name, text, { bom = false } = {}) => writeFileSync(join(dir, name), (bom ? BOM : '') + text, 'utf8');
 
 // 1. 검증 — 실패하면 리포트만 남기고 중단 (반쪽 산출물을 남기지 않는다)
-const report = validateStoryboard(sb, evidence, { renderPrompt: renderH3Prompt });
+const report = validateStoryboard(sb, evidence, { renderPrompt: (x) => renderH3Prompt(x, profile), profile });
 if (!report.ok) {
   write('build-report.json', JSON.stringify(report, null, 2));
   console.error(`검증 실패 (${report.errors.length}건):`);
@@ -70,9 +92,9 @@ if (!report.ok) {
 }
 
 // 2. 텍스트 산출물
-write('h3-prompt.txt', renderH3Prompt(sb));
+write('h3-prompt.txt', renderH3Prompt(sb, profile));
 write('panel-prompts.txt', renderPanelPromptsText(sb));
-write('subtitles.ass', renderAss(sb), { bom: true });
+write('subtitles.ass', renderAss(sb, profile), { bom: true });
 write('burn.ps1', renderBurnPs1(), { bom: true });
 
 // 3. 패널 (선택) — codex exec 1회
@@ -104,5 +126,6 @@ write('storyboard.md', renderStoryboardMd(sb, report, evidence));
 write('build-report.json', JSON.stringify(report, null, 2));
 
 console.log(`검증 통과 · 내레이션 ${report.metrics.syllables}음절 · 큐 ${report.metrics.cues} · 샷 ${report.metrics.shots} · 패널 ${report.metrics.panels} · 프롬프트 ${report.metrics.promptChars}자`);
+console.log(`프로파일 ${profile.name} (${profile.source}) · ${profile.canvas.width}×${profile.canvas.height} · 자막 ${profile.subtitle.font} ${profile.subtitle.size}px · 줄당 ${profile.derived.maxLineLen}자`);
 for (const w of report.warnings) console.log(`  (경고 ${w.rule}) ${w.message}`);
 console.log(`산출물: ${dir}`);

@@ -2,9 +2,22 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { renderH3Prompt, cuesForShot } from './render-h3.mjs';
+import { resolveProfile } from './profile.mjs';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/kafka-metamorphosis.json', import.meta.url), 'utf8'));
-const out = renderH3Prompt(fixture);
+const out = renderH3Prompt(fixture, resolveProfile({ name: 'ttokttok' }));
+
+test('구도 지시는 프로파일의 크롭에서 유도된다', () => {
+  assert.ok(out.includes('central 88% of the frame width'));
+  assert.ok(out.includes('outer 6% on each side'));
+});
+
+test('크롭이 없는 프로파일이면 구도 지시를 아예 넣지 않는다', () => {
+  const o = renderH3Prompt(fixture, resolveProfile({ name: 'generic-9x16' }));
+  assert.ok(!o.includes('central'));
+  assert.ok(!o.includes('cropped by the player'));
+  assert.ok(o.includes('Do not render any on-screen text')); // 나머지 규칙은 남는다
+});
 
 test('3필드 라벨이 순서대로 있다', () => {
   const a = out.indexOf('integrated_multimodal_description:');

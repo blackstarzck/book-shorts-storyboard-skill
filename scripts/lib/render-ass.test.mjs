@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { renderAss } from './render-ass.mjs';
 import { renderBurnPs1 } from './render-burn.mjs';
+import { resolveProfile } from './profile.mjs';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/kafka-metamorphosis.json', import.meta.url), 'utf8'));
-const ass = renderAss(fixture);
+const ttok = resolveProfile({ name: 'ttokttok' });
+const ass = renderAss(fixture, ttok);
 
-test('헤더: PlayRes 1440×2560', () => {
+test('헤더: 프로파일의 캔버스가 PlayRes로 들어간다', () => {
   assert.ok(ass.startsWith('[Script Info]'));
   assert.ok(ass.includes('PlayResX: 1440'));
   assert.ok(ass.includes('PlayResY: 2560'));
@@ -16,6 +18,25 @@ test('헤더: PlayRes 1440×2560', () => {
 test('스타일 2개: Sub(하단 중앙, 마진 288/384) · Title(정중앙)', () => {
   assert.ok(ass.includes('Style: Sub,Malgun Gothic,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,0,2,288,288,384,1'));
   assert.ok(ass.includes('Style: Title,Malgun Gothic,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,8,0,5,288,288,0,1'));
+});
+
+test('프로파일을 바꾸면 좌표·폰트·줄바꿈이 전부 따라온다', () => {
+  const out = renderAss(fixture, resolveProfile({ name: 'generic-9x16' }));
+  assert.ok(out.includes('PlayResX: 1080'));
+  assert.ok(out.includes('PlayResY: 1920'));
+  assert.ok(out.includes('Style: Sub,Noto Sans KR,54,'));
+  assert.ok(out.includes(',2,130,130,384,1'));
+  assert.ok(out.includes('Style: Title,Noto Sans KR,72,'));
+  // 줄당 15자라 ttokttok(12자)에서 접히던 큐가 한 줄로 간다
+  assert.ok(out.includes(',Sub,,0,0,0,,몸이 벌레로 변해 있었다'));
+  assert.ok(ass.includes(',Sub,,0,0,0,,몸이 벌레로 변해\\N있었다'));
+});
+
+test('프로파일을 안 주면 storyboard.delivery 를 따르고, 그것도 없으면 기본값', () => {
+  assert.ok(renderAss(fixture).includes('PlayResX: 1440')); // 픽스처가 ttokttok 선언
+  const bare = structuredClone(fixture);
+  delete bare.delivery;
+  assert.ok(renderAss(bare).includes('PlayResX: 1080'));
 });
 
 test('큐 → Dialogue, 12자 줄바꿈은 \\N', () => {
@@ -31,7 +52,7 @@ test('no_subtitle 큐는 자막에서 빠진다 — 말은 하되 화면에는 �
   // 제목을 마지막 큐에서 말하면서 제목 카드도 띄우면 같은 글자가 두 번 겹친다
   const sb = structuredClone(fixture);
   sb.narration.at(-1).no_subtitle = true;
-  const out = renderAss(sb);
+  const out = renderAss(sb, ttok);
   assert.ok(!out.includes(',Sub,,0,0,0,,카프카, 변신'));
   assert.ok(out.includes(',Title,,0,0,0,,변신 · 프란츠 카프카')); // 제목 카드는 남는다
   assert.equal(out.split('\n').filter((l) => l.includes(',Sub,')).length, fixture.narration.length - 1);
@@ -40,14 +61,14 @@ test('no_subtitle 큐는 자막에서 빠진다 — 말은 하되 화면에는 �
 test('큐는 start 순으로 정렬된다', () => {
   const sb = structuredClone(fixture);
   sb.narration.reverse();
-  const lines = renderAss(sb).split('\n').filter((l) => l.includes(',Sub,'));
+  const lines = renderAss(sb, ttok).split('\n').filter((l) => l.includes(',Sub,'));
   assert.ok(lines[0].includes('0:00:00.40'));
 });
 
 test('중괄호는 이스케이프', () => {
   const sb = structuredClone(fixture);
   sb.narration[0].text_ko = '가나{다}';
-  assert.ok(renderAss(sb).includes('가나\\{다\\}'));
+  assert.ok(renderAss(sb, ttok).includes('가나\\{다\\}'));
 });
 
 test('burn.ps1: 상대 경로 ass 필터, ffmpeg·입력 파일 검사', () => {

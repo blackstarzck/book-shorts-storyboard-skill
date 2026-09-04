@@ -1,5 +1,6 @@
 import { toH3Timecode } from './timecode.mjs';
 import { cameraPhrase } from './camera.mjs';
+import { resolveProfile } from './profile.mjs';
 
 /**
  * MiniMax H3 프롬프트 조립. 문법 정본: references/h3-prompt-spec.md
@@ -9,7 +10,17 @@ import { cameraPhrase } from './camera.mjs';
  * - 똑똑 피드가 좌우 6%를 자르므로 중앙 88% 구도를 지시
  * - 자막은 후처리 번인이므로 화면 텍스트 생성을 금지
  */
-const FRAME_RULE = 'Keep every key subject and face inside the central 88% of the frame width — the outer 6% on each side is cropped by the player.';
+/**
+ * 구도 세이프 지시. 플레이어가 좌우를 자르는 프로파일에서만 넣는다 —
+ * 크롭이 없는데 "중앙 100%"라고 쓰면 무의미하고 프롬프트만 길어진다.
+ */
+const frameRule = (profile) => {
+  const pct = profile.derived.safeCenterPct;
+  if (!pct) return null;
+  const perSide = Math.round(profile.framing.cropPerSide * 100);
+  return `Keep every key subject and face inside the central ${pct}% of the frame width — the outer ${perSide}% on each side is cropped by the player.`;
+};
+
 const NO_TEXT_RULE = 'Do not render any on-screen text, captions, subtitles, titles, or lettering anywhere in the video.';
 const NARRATOR_RULE = '(S1) is the narrator and never appears on screen.';
 const VOICEOVER = "(S1) says in an off-screen voiceover while every on-screen character's lips remain completely closed:";
@@ -22,10 +33,16 @@ export function cuesForShot(sb, shot) {
   return (sb.narration ?? []).filter((c) => c.start >= shot.start && c.start < shot.end);
 }
 
-export function renderH3Prompt(sb) {
+export function renderH3Prompt(sb, profile = resolveProfile({ storyboard: sb })) {
   const out = [];
+  const preamble = [
+    period(sb.style_lock),
+    `Vertical 9:16 portrait video, ${sb.duration_sec} seconds, ${sb.shots.length} shots.`,
+    frameRule(profile),
+    NO_TEXT_RULE,
+  ].filter(Boolean).join(' ');
   out.push('integrated_multimodal_description:');
-  out.push(`${period(sb.style_lock)} Vertical 9:16 portrait video, ${sb.duration_sec} seconds, ${sb.shots.length} shots. ${FRAME_RULE} ${NO_TEXT_RULE}`);
+  out.push(preamble);
   out.push(sb.character_sheet?.trim()
     ? `Recurring on-screen character: ${period(sb.character_sheet)} Preserve these features in every shot. ${NARRATOR_RULE}`
     : NARRATOR_RULE);

@@ -187,19 +187,58 @@ node "<스킬 폴더>/scripts/build-storyboard.mjs" <출력 폴더> --panels
 
 V2가 가장 자주 걸린다. **"15초 안에 줄거리 설명"이 실패하는 지점은 거의 항상 대본이 길어서**고, 눈으로는 안 잡힌다.
 
-## 다른 앱에 맞추기
+## 다른 앱에 맞추기 — 납품 프로파일
 
-자막 좌표는 특정 피드 UI에 맞춰 실측한 값이다. 다른 곳에 쓰려면 두 파일을 고친다.
+자막 좌표는 코드에 박혀 있지 않다. **납품 프로파일**로 빠져 있어서 앱마다 갈아끼운다.
 
-`references/ttokttok-delivery.md`에 좌표 산출 근거가 있고, `scripts/lib/render-ass.mjs`에 실제 값이 있다.
+| 내장 프로파일 | 캔버스 | 자막 | 줄당 | 크롭 |
+|---|---|---|---|---|
+| `generic-9x16` (기본) | 1080×1920 | Noto Sans KR 54px, 마진 130/384 | 15자 | 없음 |
+| `ttokttok` | 1440×2560 | Malgun Gothic 72px, 마진 288/384 | 12자 | 좌우 6% |
 
-| 항목 | 현재 값 (1440×2560 기준) | 근거 |
+고르는 방법은 셋이다. 우선순위대로다.
+
+```bash
+# 1. CLI — 내장 이름 또는 JSON 파일 경로
+node scripts/build-storyboard.mjs out --profile ttokttok
+node scripts/build-storyboard.mjs out --profile ./my-app.json
+```
+
+```jsonc
+// 2. storyboard.json 의 delivery 필드 — 재빌드가 재현되므로 이쪽을 권한다
+{ "duration_sec": 15, "delivery": "ttokttok", ... }
+
+// 내장 프로파일 위에 일부만 덮어쓸 수도 있다
+{ "delivery": { "base": "ttokttok", "subtitle": { "font": "Pretendard" } } }
+```
+
+3\. 아무것도 없으면 `generic-9x16`.
+
+### 유도되는 값
+
+좌표만 설정으로 빼면 반쪽이다. 아래 둘은 **같은 좌표에서 계산되므로** 프로파일을 바꾸면 자동으로 따라온다.
+
+| 값 | 계산 | 쓰이는 곳 |
 |---|---|---|
-| 자막 좌우 인셋 | 288px (20%) | 플레이어의 `object-cover` 좌우 크롭 6% + UI 크롬 14% |
-| 자막 하단 금지 | 384px (15%) | 하단 정보 바 |
-| 피사체 세이프 | 중앙 88% | 좌우 크롭 |
+| 줄당 글자수 | `(캔버스 폭 - 좌우 마진×2) ÷ 자막 크기` | 자막 줄바꿈, 검증 V3 |
+| 구도 세이프 % | `(1 - 크롭×2) × 100` | 영상 프롬프트의 "중앙 N% 안에" 지시 |
 
-세로 영상이 세로로 더 긴 컨테이너에서 `object-cover`로 표시되면 **좌우가 잘린다.** 그래서 영상 프롬프트에 "중요 피사체·얼굴은 중앙 88% 안에"가 자동으로 들어간다. 이 계산이 다른 앱에서도 필요한지 먼저 확인하는 게 좋다.
+크롭이 `0`이면 구도 지시 문장 자체가 빠진다. "중앙 100%"는 무의미하기 때문이다.
+
+### 새 프로파일 만들기
+
+JSON 한 장이면 된다. `base`를 지정하면 그 위에 병합된다.
+
+```json
+{
+  "base": "generic-9x16",
+  "canvas": { "width": 1440, "height": 2560 },
+  "subtitle": { "font": "Pretendard", "size": 64, "marginX": 200, "marginBottom": 420 },
+  "framing": { "cropPerSide": 0.04 }
+}
+```
+
+**세로 영상이 세로로 더 긴 컨테이너에서 `object-cover`로 표시되면 좌우가 잘린다.** 그런 플레이어에 납품한다면 `cropPerSide`를 실측해 넣어야 인물 얼굴이 안 잘린다. 산출 방법은 `references/ttokttok-delivery.md`에 실측 사례로 정리돼 있다.
 
 ## 알려진 한계
 

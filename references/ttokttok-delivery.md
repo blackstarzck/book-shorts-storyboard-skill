@@ -32,16 +32,41 @@
 
 → H3 프롬프트에 "central 88%" 지시 (렌더러가 자동 삽입).
 
-## ASS 스타일 (`scripts/lib/render-ass.mjs`)
+## ASS 스타일 — `ttokttok` 프로파일
+
+좌표는 코드에 박혀 있지 않다. `scripts/lib/profile.mjs`의 내장 프로파일이 들고 있고,
+`storyboard.json`의 `delivery` 필드나 `--profile`로 고른다.
+
+```jsonc
+// profile.mjs 의 ttokttok
+{
+  "canvas":    { "width": 1440, "height": 2560 },
+  "subtitle":  { "font": "Malgun Gothic", "size": 72, "outline": 6,
+                 "marginX": 288, "marginBottom": 384, "maxLines": 2 },
+  "titleCard": { "size": 96, "outline": 8 },
+  "framing":   { "cropPerSide": 0.06 }
+}
+```
 
 | 스타일 | 폰트 | 크기 | 외곽선 | 정렬 | 마진 L/R/V |
 |---|---|---|---|---|---|
 | Sub | Malgun Gothic Bold | 72 | 6 검정 | 2 (하단 중앙) | 288 / 288 / 384 |
 | Title | Malgun Gothic Bold | 96 | 8 검정 | 5 (정중앙) | 288 / 288 / 0 |
 
-- 줄당 12자, 최대 2줄 (864 ÷ 72)
+**유도되는 값** — 좌표를 바꾸면 자동으로 따라온다. 따로 적어두지 않는다.
+
+| 값 | 계산 | ttokttok |
+|---|---|---|
+| 줄당 글자수 | `(width - marginX×2) ÷ size` | (1440-576) ÷ 72 = **12자** |
+| 구도 세이프 | `(1 - cropPerSide×2) × 100` | (1-0.12) × 100 = **중앙 88%** |
+
+구도 세이프는 H3 프롬프트에 자동 삽입된다. `cropPerSide`가 0이면 그 문장 자체를 넣지
+않는다 — "중앙 100%"는 무의미하기 때문이다.
+
 - 파일은 UTF-8 **BOM** (PowerShell 5.1 호환)
 - 폰트: `C:\Windows\Fonts\malgun.ttf` 존재 확인. 못 찾으면 `ass=subtitles.ass:fontsdir=C\:/Windows/Fonts`
+- 색은 프로파일에 없다. 흰 글자 + 검정 외곽선은 어떤 배경에서도 읽히는 사실상의 표준이고,
+  거기를 열면 가독성이 떨어지는 조합을 고를 여지만 생긴다
 
 ## 번인 (`burn.ps1`)
 

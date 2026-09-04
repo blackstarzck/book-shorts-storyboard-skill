@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateStoryboard, LIMITS } from './validate.mjs';
+import { resolveProfile } from './profile.mjs';
 
 const here = new URL('.', import.meta.url);
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/kafka-metamorphosis.json', here), 'utf8'));
@@ -9,6 +10,20 @@ const evidence = JSON.parse(readFileSync(new URL('../../references/evidence.json
 const clone = () => structuredClone(fixture);
 const rules = (r) => r.errors.map((e) => e.rule);
 const errorsOf = (r, rule) => r.errors.filter((e) => e.rule === rule);
+
+test('V3: 줄 제한은 프로파일에서 온다 — 좌표를 바꾸면 검증도 따라온다', () => {
+  // "몸이 벌레로 변해 있었다" = 13자. ttokttok(12자)에서는 2줄, generic(15자)에서는 1줄.
+  const sb = clone();
+  sb.narration[1].text_ko = '가나다 라마바 사아자 차카타'; // 13자
+  const tight = { profile: resolveProfile({ name: 'ttokttok' }) };
+  const wide = { profile: resolveProfile({ name: 'generic-9x16' }) };
+  assert.equal(errorsOf(validateStoryboard(sb, evidence, tight), 'V3').length, 0); // 2줄이라 통과
+
+  // 25자면 ttokttok에서 3줄이라 걸리고, generic에서는 2줄이라 통과한다
+  sb.narration[1].text_ko = '가나다 라마바 사아자 차카타 파하가 나다라 마';
+  assert.ok(rules(validateStoryboard(sb, evidence, tight)).includes('V3'));
+  assert.equal(errorsOf(validateStoryboard(sb, evidence, wide), 'V3').length, 0);
+});
 
 test('픽스처는 에러·경고 없이 통과한다', () => {
   const r = validateStoryboard(fixture, evidence);
@@ -128,8 +143,14 @@ test('V9: 제목·슬러그', () => {
   sb = clone(); sb.book.slug = 'Kafka Metamorphosis'; assert.ok(rules(validateStoryboard(sb, evidence)).includes('V9'));
 });
 
-test('LIMITS 상수', () => {
+test('LIMITS 상수 — 줄 제한은 여기 없다, 프로파일이 들고 있다', () => {
   assert.equal(LIMITS.maxSyllables, 75);
-  assert.equal(LIMITS.maxLineLen, 12);
   assert.equal(LIMITS.maxPromptChars, 7000);
+  assert.equal(LIMITS.maxLineLen, undefined);
+  assert.equal(LIMITS.maxLines, undefined);
+});
+
+test('픽스처는 delivery로 프로파일을 선언한다 — 재빌드가 재현된다', () => {
+  assert.equal(fixture.delivery, 'ttokttok');
+  assert.equal(validateStoryboard(fixture, evidence).metrics.maxLineLen, 12);
 });

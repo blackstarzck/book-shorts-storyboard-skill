@@ -1,15 +1,16 @@
 import { countSyllables, hasLatinOrDigit, wrapCue } from './text.mjs';
 import { CAMERA_TYPES, AMPLITUDES, SPEEDS } from './camera.mjs';
+import { resolveProfile } from './profile.mjs';
 
 /**
  * 검증 상수. 근거는 설계 문서 "검증 규칙" 절.
  * maxSyllables: 한국어 발화 5.5음절/초 × 15초 = 82, 호흡 여유 7 차감.
- * maxLineLen: 자막 폭 864px ÷ 72px 폰트 = 12자.
+ *
+ * 줄 제한(줄당 글자수·최대 줄수)은 여기 없다 — 자막 좌표에서 유도되므로
+ * 납품 프로파일이 들고 있다 (lib/profile.mjs).
  */
 export const LIMITS = {
   maxSyllables: 75,
-  maxLineLen: 12,
-  maxLines: 2,
   minCueSec: 0.8,
   warnSyllablesPerSec: 7,
   maxPromptChars: 7000,
@@ -22,8 +23,11 @@ export const LIMITS = {
  * @param sb storyboard.json 객체
  * @param evidence references/evidence.json 객체
  * @param opts.renderPrompt (sb) => string — 주어지면 V4(프롬프트 길이)를 검사한다
+ * @param opts.profile 납품 프로파일. 자막 줄 제한이 여기서 온다
  */
-export function validateStoryboard(sb, evidence, { renderPrompt } = {}) {
+export function validateStoryboard(sb, evidence, { renderPrompt, profile = resolveProfile({ storyboard: sb }) } = {}) {
+  const maxLineLen = profile.derived.maxLineLen;
+  const maxLines = profile.subtitle.maxLines;
   const errors = [];
   const warnings = [];
   const err = (rule, message) => errors.push({ rule, message });
@@ -71,8 +75,8 @@ export function validateStoryboard(sb, evidence, { renderPrompt } = {}) {
   sorted.forEach((c, i) => {
     const text = c.text_ko ?? '';
     // no_subtitle 큐는 화면에 안 뜨므로 줄 제한이 무의미하다. 나머지(길이·겹침·속도)는 H3가 읽으므로 그대로 본다.
-    const lines = wrapCue(text, L.maxLineLen);
-    if (!c.no_subtitle && lines.length > L.maxLines) err('V3', `큐 "${text}": ${lines.length}줄 — 최대 ${L.maxLines}줄(줄당 ${L.maxLineLen}자). 큐를 나눠라`);
+    const lines = wrapCue(text, maxLineLen);
+    if (!c.no_subtitle && lines.length > maxLines) err('V3', `큐 "${text}": ${lines.length}줄 — 최대 ${maxLines}줄(줄당 ${maxLineLen}자, 프로파일 '${profile.name}'). 큐를 나눠라`);
     const dur = c.end - c.start;
     if (!(dur >= L.minCueSec)) err('V3', `큐 "${text}": 표시 ${Number(dur).toFixed(2)}s — 최소 ${L.minCueSec}s`);
     if (c.start < 0 || c.end > d) err('V3', `큐 "${text}": [0, ${d}] 밖 (${c.start}~${c.end})`);
@@ -131,6 +135,6 @@ export function validateStoryboard(sb, evidence, { renderPrompt } = {}) {
     ok: errors.length === 0,
     errors,
     warnings,
-    metrics: { syllables, cues: cues.length, shots: shots.length, panels: panels.length, promptChars },
+    metrics: { syllables, cues: cues.length, shots: shots.length, panels: panels.length, promptChars, profile: profile.name, maxLineLen },
   };
 }
