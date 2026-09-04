@@ -41,9 +41,10 @@
 // profile.mjs 의 ttokttok
 {
   "canvas":    { "width": 1440, "height": 2560 },
-  "subtitle":  { "font": "Malgun Gothic", "size": 72, "outline": 6,
-                 "marginX": 288, "marginBottom": 384, "maxLines": 2 },
-  "titleCard": { "size": 96, "outline": 8 },
+  "subtitle":  { "font": "Malgun Gothic", "size": 72, "outline": 6, "shadow": 0,
+                 "marginX": 288, "marginBottom": 384, "maxLines": 2,
+                 "color": "#FFFFFF", "outlineColor": "#000000", "shadowColor": "#00000080" },
+  "titleCard": { "size": 96, "outline": 8, "shadow": 0 },
   "framing":   { "cropPerSide": 0.06 }
 }
 ```
@@ -59,14 +60,16 @@
 |---|---|---|
 | 줄당 글자수 | `(width - marginX×2) ÷ size` | (1440-576) ÷ 72 = **12자** |
 | 구도 세이프 | `(1 - cropPerSide×2) × 100` | (1-0.12) × 100 = **중앙 88%** |
+| ASS 색 | hex → `&HAABBGGRR` (BGR 역순, 알파 반전) | `#FFFFFF` → `&H00FFFFFF` |
 
 구도 세이프는 H3 프롬프트에 자동 삽입된다. `cropPerSide`가 0이면 그 문장 자체를 넣지
 않는다 — "중앙 100%"는 무의미하기 때문이다.
 
 - 파일은 UTF-8 **BOM** (PowerShell 5.1 호환)
 - 폰트: `C:\Windows\Fonts\malgun.ttf` 존재 확인. 못 찾으면 `ass=subtitles.ass:fontsdir=C\:/Windows/Fonts`
-- 색은 프로파일에 없다. 흰 글자 + 검정 외곽선은 어떤 배경에서도 읽히는 사실상의 표준이고,
-  거기를 열면 가독성이 떨어지는 조합을 고를 여지만 생긴다
+- 색은 hex로 쓴다. ASS 원형(`&HAABBGGRR`)은 BGR 역순에 알파가 뒤집혀 있어 손으로 쓰면 틀린다
+- 흰 글자 + 검정 외곽선(명암비 21:1)이 기본값이다. 바꾸면 명암비를 재서 4.5:1 아래면 경고한다.
+  영상 위 자막은 배경을 고를 수 없어 외곽선이 글자를 분리하는 유일한 수단이기 때문이다
 
 ## 번인 (`burn.ps1`)
 

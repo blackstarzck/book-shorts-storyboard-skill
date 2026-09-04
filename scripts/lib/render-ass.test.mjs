@@ -16,8 +16,8 @@ test('헤더: 프로파일의 캔버스가 PlayRes로 들어간다', () => {
 });
 
 test('스타일 2개: Sub(하단 중앙, 마진 288/384) · Title(정중앙)', () => {
-  assert.ok(ass.includes('Style: Sub,Malgun Gothic,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,0,2,288,288,384,1'));
-  assert.ok(ass.includes('Style: Title,Malgun Gothic,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,8,0,5,288,288,0,1'));
+  assert.ok(ass.includes('Style: Sub,Malgun Gothic,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,6,0,2,288,288,384,1'));
+  assert.ok(ass.includes('Style: Title,Malgun Gothic,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,8,0,5,288,288,0,1'));
 });
 
 test('프로파일을 바꾸면 좌표·폰트·줄바꿈이 전부 따라온다', () => {

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { toAssColor, contrastRatio } from './color.mjs';
 
 /**
  * 납품 프로파일 — 자막 좌표와 그로부터 유도되는 값들.
@@ -18,8 +19,12 @@ export const BUILTIN_PROFILES = {
    */
   'generic-9x16': {
     canvas: { width: 1080, height: 1920 },
-    subtitle: { font: 'Noto Sans KR', size: 54, outline: 5, marginX: 130, marginBottom: 384, maxLines: 2 },
-    titleCard: { size: 72, outline: 6 },
+    subtitle: {
+      font: 'Noto Sans KR', size: 54, outline: 5, shadow: 0,
+      marginX: 130, marginBottom: 384, maxLines: 2,
+      color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
+    },
+    titleCard: { size: 72, outline: 6, shadow: 0 },
     framing: { cropPerSide: 0 },
   },
 
@@ -29,8 +34,12 @@ export const BUILTIN_PROFILES = {
    */
   ttokttok: {
     canvas: { width: 1440, height: 2560 },
-    subtitle: { font: 'Malgun Gothic', size: 72, outline: 6, marginX: 288, marginBottom: 384, maxLines: 2 },
-    titleCard: { size: 96, outline: 8 },
+    subtitle: {
+      font: 'Malgun Gothic', size: 72, outline: 6, shadow: 0,
+      marginX: 288, marginBottom: 384, maxLines: 2,
+      color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
+    },
+    titleCard: { size: 96, outline: 8, shadow: 0 },
     framing: { cropPerSide: 0.06 },
   },
 };
@@ -47,17 +56,48 @@ function mergeDeep(base, patch) {
   return out;
 }
 
-/** 좌표에서 나오는 값들. 손으로 적어두지 않는다. */
+/** 자막 가독성 하한. WCAG AA 기준. 영상 위 자막은 배경을 못 고르므로 외곽선이 유일한 분리 수단이다. */
+export const MIN_CONTRAST = 4.5;
+
+/** 좌표·색에서 나오는 값들. 손으로 적어두지 않는다. */
 function derive(p) {
   const usableWidth = p.canvas.width - p.subtitle.marginX * 2;
   const crop = p.framing?.cropPerSide ?? 0;
+  const sub = p.subtitle;
+  const title = p.titleCard;
+  const assFor = (src) => ({
+    color: toAssColor(src.color ?? sub.color),
+    outlineColor: toAssColor(src.outlineColor ?? sub.outlineColor),
+    shadowColor: toAssColor(src.shadowColor ?? sub.shadowColor),
+  });
   return {
     usableWidth,
     // 한글은 정사각에 가까워 글자수 ≈ 폭 / 글자크기. 보수적으로 내림한다.
-    maxLineLen: Math.max(1, Math.floor(usableWidth / p.subtitle.size)),
+    maxLineLen: Math.max(1, Math.floor(usableWidth / sub.size)),
     // 크롭이 없으면 구도 지시를 넣지 않는다 — "중앙 100%"는 무의미하다.
     safeCenterPct: crop > 0 ? Math.round((1 - crop * 2) * 100) : null,
+    ass: assFor(sub),
+    // 제목 카드 색을 안 주면 자막 색을 그대로 쓴다
+    assTitle: assFor(title),
   };
+}
+
+/** 값을 막지는 않는다. 고른 사람이 알고 고르게만 한다. */
+function colorWarnings(p) {
+  const out = [];
+  const sub = p.subtitle;
+  const check = (label, fg, bg) => {
+    const ratio = contrastRatio(fg, bg);
+    if (ratio < MIN_CONTRAST) {
+      out.push(`${label} 명암비 ${ratio.toFixed(1)}:1 — 권장 ${MIN_CONTRAST}:1 이상. 영상 위 자막은 배경을 고를 수 없어 외곽선이 유일한 분리 수단이다 (글자 ${fg} / 외곽선 ${bg}).`);
+    }
+  };
+  check('자막', sub.color, sub.outlineColor);
+  const t = p.titleCard;
+  if (t.color || t.outlineColor) {
+    check('제목 카드', t.color ?? sub.color, t.outlineColor ?? sub.outlineColor);
+  }
+  return out;
 }
 
 function readJson(path) {
@@ -98,5 +138,6 @@ export function resolveProfile({ cli, storyboard, name } = {}) {
 
   const { base: _drop, ...overrides } = spec;
   const merged = mergeDeep(base, overrides);
-  return { ...merged, name: baseName, source, derived: derive(merged) };
+  // derive 가 색을 변환하므로 형식 오류는 여기서 던진다 — 조용히 검정으로 떨어지지 않는다
+  return { ...merged, name: baseName, source, derived: derive(merged), warnings: colorWarnings(merged) };
 }

@@ -78,3 +78,39 @@ test('아무것도 안 주면 기본 프로파일', () => {
   assert.equal(p.name, DEFAULT_PROFILE);
   assert.equal(p.source, `builtin:${DEFAULT_PROFILE}`);
 });
+
+test('색은 hex로 받아 ASS 형식으로 유도한다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.subtitle.color, '#FFFFFF');
+  assert.equal(p.subtitle.outlineColor, '#000000');
+  assert.equal(p.derived.ass.color, '&H00FFFFFF');
+  assert.equal(p.derived.ass.outlineColor, '&H00000000');
+  assert.equal(p.derived.ass.shadowColor, '&H7F000000'); // #00000080 → ASS는 알파가 뒤집힌다
+});
+
+test('제목 카드 색은 생략하면 자막 색을 따른다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.derived.assTitle.color, p.derived.ass.color);
+
+  const o = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', titleCard: { color: '#FFD400' } } } });
+  assert.equal(o.derived.assTitle.color, '&H0000D4FF'); // BGR 역순
+  assert.equal(o.derived.ass.color, '&H00FFFFFF');      // 자막은 그대로
+});
+
+test('명암비가 낮으면 경고한다 — 막지는 않는다', () => {
+  const ok = resolveProfile({ name: 'ttokttok' });
+  assert.deepEqual(ok.warnings, []);
+
+  const bad = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', subtitle: { outlineColor: '#AAAAAA' } } } });
+  assert.equal(bad.warnings.length, 1);
+  assert.match(bad.warnings[0], /명암비/);
+  assert.match(bad.warnings[0], /자막/);
+  assert.equal(bad.derived.ass.outlineColor, '&H00AAAAAA'); // 경고만 하고 값은 그대로 쓴다
+});
+
+test('잘못된 색 형식은 프로파일 해석에서 던진다', () => {
+  assert.throws(
+    () => resolveProfile({ storyboard: { delivery: { subtitle: { color: 'red' } } } }),
+    /red/,
+  );
+});

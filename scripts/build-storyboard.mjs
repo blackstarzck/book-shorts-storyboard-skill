@@ -83,6 +83,8 @@ const write = (name, text, { bom = false } = {}) => writeFileSync(join(dir, name
 
 // 1. 검증 — 실패하면 리포트만 남기고 중단 (반쪽 산출물을 남기지 않는다)
 const report = validateStoryboard(sb, evidence, { renderPrompt: (x) => renderH3Prompt(x, profile), profile });
+// 프로파일 자체의 문제(낮은 명암비 등)는 검증을 막지 않는다. 고른 사람이 알고 고르게만 한다.
+for (const w of profile.warnings) report.warnings.push({ rule: 'PROFILE', message: w });
 if (!report.ok) {
   write('build-report.json', JSON.stringify(report, null, 2));
   console.error(`검증 실패 (${report.errors.length}건):`);
@@ -126,6 +128,6 @@ write('storyboard.md', renderStoryboardMd(sb, report, evidence));
 write('build-report.json', JSON.stringify(report, null, 2));
 
 console.log(`검증 통과 · 내레이션 ${report.metrics.syllables}음절 · 큐 ${report.metrics.cues} · 샷 ${report.metrics.shots} · 패널 ${report.metrics.panels} · 프롬프트 ${report.metrics.promptChars}자`);
-console.log(`프로파일 ${profile.name} (${profile.source}) · ${profile.canvas.width}×${profile.canvas.height} · 자막 ${profile.subtitle.font} ${profile.subtitle.size}px · 줄당 ${profile.derived.maxLineLen}자`);
+console.log(`프로파일 ${profile.name} (${profile.source}) · ${profile.canvas.width}×${profile.canvas.height} · 자막 ${profile.subtitle.font} ${profile.subtitle.size}px ${profile.subtitle.color}/${profile.subtitle.outlineColor} · 줄당 ${profile.derived.maxLineLen}자`);
 for (const w of report.warnings) console.log(`  (경고 ${w.rule}) ${w.message}`);
 console.log(`산출물: ${dir}`);
