@@ -3,11 +3,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { renderContiSheet } from './render-sheet.mjs';
 import { sheetHeight, findBrowser } from './sheet-png.mjs';
+import { resolveProfile } from './profile.mjs';
 
 const here = new URL('.', import.meta.url);
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/kafka-metamorphosis.json', here), 'utf8'));
 const evidence = JSON.parse(readFileSync(new URL('../../references/evidence.json', here), 'utf8'));
 const template = readFileSync(new URL('../../templates/contisheet.html', here), 'utf8');
+
+test('폰트 스택은 프로파일에서 온다 — 시트와 영상이 같은 폰트로 보인다', () => {
+  const html = renderContiSheet(fixture, template, { evidence });
+  assert.ok(html.includes('font-family: "Malgun Gothic"')); // 픽스처가 ttokttok 선언
+  const g = renderContiSheet(fixture, template, { evidence, profile: resolveProfile({ name: 'generic-9x16' }) });
+  assert.ok(g.includes('font-family: "Noto Sans KR"'));
+});
 
 test('헤더 토큰이 치환된다', () => {
   const html = renderContiSheet(fixture, template, { evidence });

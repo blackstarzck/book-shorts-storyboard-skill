@@ -1,5 +1,6 @@
 import { toH3Timecode } from './timecode.mjs';
 import { panelFileName, renderPanelPrompt } from './render-panels.mjs';
+import { resolveProfile } from './profile.mjs';
 
 /**
  * 콘티 시트 HTML. 레이아웃 = VIDEO 노트 │ 9:16 패널 │ AUDIO 노트, 행 = 패널.
@@ -36,10 +37,15 @@ function renderEvidence(sb, evidence) {
   return `근거 · ${escapeHtml(c.hook_type)} × ${escapeHtml(c.tone)}<br>${items.join('<br>')}`;
 }
 
-export function renderContiSheet(sb, template, { panelExists = () => false, evidence = {} } = {}) {
+export function renderContiSheet(sb, template, {
+  panelExists = () => false,
+  evidence = {},
+  profile = resolveProfile({ storyboard: sb }),
+} = {}) {
   const concept = sb.concepts.find((x) => x.id === sb.selected_concept);
   const rows = sb.panels.map((p) => renderRow(sb, p, panelExists)).join('\n');
   return template
+    .replaceAll('{{FONT_STACK}}', profile.derived.cssFontStack)
     .replaceAll('{{TITLE}}', escapeHtml(sb.book.title))
     .replaceAll('{{AUTHOR}}', escapeHtml(sb.book.author ?? ''))
     .replaceAll('{{CONCEPT}}', concept ? `${escapeHtml(concept.hook_type)} × ${escapeHtml(concept.tone)} × ${escapeHtml(concept.visual_style)}` : '')

@@ -25,6 +25,9 @@ export const BUILTIN_PROFILES = {
       color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
     },
     titleCard: { size: 72, outline: 6, shadow: 0 },
+    // webStack: 콘티 시트(HTML)가 자막 폰트를 못 찾았을 때의 폴백.
+    // dir: 시스템에 안 깔린 폰트를 쓸 때 ffmpeg 에 넘길 폴더. null 이면 시스템 폰트.
+    fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
     framing: { cropPerSide: 0 },
   },
 
@@ -40,6 +43,7 @@ export const BUILTIN_PROFILES = {
       color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
     },
     titleCard: { size: 96, outline: 8, shadow: 0 },
+    fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
     framing: { cropPerSide: 0.06 },
   },
 };
@@ -70,6 +74,19 @@ function derive(p) {
     outlineColor: toAssColor(src.outlineColor ?? sub.outlineColor),
     shadowColor: toAssColor(src.shadowColor ?? sub.shadowColor),
   });
+  // 콘티 시트가 영상과 같은 폰트로 보이도록 자막 폰트를 맨 앞에 둔다.
+  // 제목 카드가 다른 폰트면 그것도 넣고, 나머지는 프로파일의 폴백 스택.
+  const stack = [sub.font, title.font, ...(p.fonts?.webStack ?? [])].filter(Boolean);
+  const seen = new Set();
+  const cssFontStack = stack
+    .filter((f) => !seen.has(f) && seen.add(f))
+    .map((f) => (f === 'sans-serif' || f === 'serif' || f === 'monospace' ? f : `"${f}"`))
+    .join(', ');
+
+  // libass 필터 인자. 경로의 드라이브 콜론은 이스케이프해야 필터 구분자로 안 먹힌다.
+  const dir = p.fonts?.dir;
+  const assFilter = dir ? `ass=subtitles.ass:fontsdir=${String(dir).replace(/:/g, '\\:')}` : 'ass=subtitles.ass';
+
   return {
     usableWidth,
     // 한글은 정사각에 가까워 글자수 ≈ 폭 / 글자크기. 보수적으로 내림한다.
@@ -79,6 +96,8 @@ function derive(p) {
     ass: assFor(sub),
     // 제목 카드 색을 안 주면 자막 색을 그대로 쓴다
     assTitle: assFor(title),
+    cssFontStack,
+    assFilter,
   };
 }
 

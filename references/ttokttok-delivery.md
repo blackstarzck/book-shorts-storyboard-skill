@@ -61,12 +61,16 @@
 | 줄당 글자수 | `(width - marginX×2) ÷ size` | (1440-576) ÷ 72 = **12자** |
 | 구도 세이프 | `(1 - cropPerSide×2) × 100` | (1-0.12) × 100 = **중앙 88%** |
 | ASS 색 | hex → `&HAABBGGRR` (BGR 역순, 알파 반전) | `#FFFFFF` → `&H00FFFFFF` |
+| CSS 폰트 스택 | 자막 폰트 + 제목 폰트 + `fonts.webStack` | `"Malgun Gothic", "Noto Sans KR", …` |
+| ffmpeg 필터 | `fonts.dir` 있으면 `fontsdir=` 추가 | `ass=subtitles.ass` |
 
 구도 세이프는 H3 프롬프트에 자동 삽입된다. `cropPerSide`가 0이면 그 문장 자체를 넣지
 않는다 — "중앙 100%"는 무의미하기 때문이다.
 
 - 파일은 UTF-8 **BOM** (PowerShell 5.1 호환)
-- 폰트: `C:\Windows\Fonts\malgun.ttf` 존재 확인. 못 찾으면 `ass=subtitles.ass:fontsdir=C\:/Windows/Fonts`
+- 폰트: `Malgun Gothic`은 Windows 기본이라 별도 설치가 필요 없다. 다른 폰트를 쓰면
+  프로파일에 `fonts.dir`를 지정한다 — `burn.ps1`의 `fontsdir=` 인자로 유도된다.
+  **libass는 폰트를 못 찾아도 경고 없이 대체한다**, 결과에서 글꼴을 확인할 것
 - 색은 hex로 쓴다. ASS 원형(`&HAABBGGRR`)은 BGR 역순에 알파가 뒤집혀 있어 손으로 쓰면 틀린다
 - 흰 글자 + 검정 외곽선(명암비 21:1)이 기본값이다. 바꾸면 명암비를 재서 4.5:1 아래면 경고한다.
   영상 위 자막은 배경을 고를 수 없어 외곽선이 글자를 분리하는 유일한 수단이기 때문이다

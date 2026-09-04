@@ -108,6 +108,40 @@ test('명암비가 낮으면 경고한다 — 막지는 않는다', () => {
   assert.equal(bad.derived.ass.outlineColor, '&H00AAAAAA'); // 경고만 하고 값은 그대로 쓴다
 });
 
+test('폰트: 이름 · 웹 폴백 스택 · 폰트 폴더가 다 프로파일에 있다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.subtitle.font, 'Malgun Gothic');
+  assert.ok(Array.isArray(p.fonts.webStack));
+  assert.equal(p.fonts.dir, null); // 시스템 폰트를 쓰면 지정할 필요 없다
+});
+
+test('콘티 시트 CSS 스택은 자막 폰트를 맨 앞에 두고 유도된다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  // 시트와 영상이 같은 폰트로 보이게 — 자막 폰트가 항상 1순위
+  assert.ok(p.derived.cssFontStack.startsWith('"Malgun Gothic"'));
+  assert.ok(p.derived.cssFontStack.endsWith('sans-serif'));
+
+  const o = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', subtitle: { font: 'Pretendard' } } } });
+  assert.ok(o.derived.cssFontStack.startsWith('"Pretendard"'));
+  // 제목 카드 폰트가 다르면 그것도 스택에 들어간다
+  const t = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', titleCard: { font: 'Black Han Sans' } } } });
+  assert.ok(t.derived.cssFontStack.includes('"Black Han Sans"'));
+});
+
+test('스택에 같은 폰트가 두 번 들어가지 않는다', () => {
+  const p = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', fonts: { webStack: ['Malgun Gothic', 'serif'] } } } });
+  const count = p.derived.cssFontStack.split('"Malgun Gothic"').length - 1;
+  assert.equal(count, 1);
+});
+
+test('fonts.dir 를 주면 ffmpeg 인자로 유도된다 — 경로의 콜론을 이스케이프한다', () => {
+  const p = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', fonts: { dir: 'C:/fonts' } } } });
+  assert.equal(p.derived.assFilter, 'ass=subtitles.ass:fontsdir=C\\:/fonts');
+
+  const none = resolveProfile({ name: 'ttokttok' });
+  assert.equal(none.derived.assFilter, 'ass=subtitles.ass');
+});
+
 test('잘못된 색 형식은 프로파일 해석에서 던진다', () => {
   assert.throws(
     () => resolveProfile({ storyboard: { delivery: { subtitle: { color: 'red' } } } }),

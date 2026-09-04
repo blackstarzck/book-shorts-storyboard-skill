@@ -223,8 +223,32 @@ node scripts/build-storyboard.mjs out --profile ./my-app.json
 | 줄당 글자수 | `(캔버스 폭 - 좌우 마진×2) ÷ 자막 크기` | 자막 줄바꿈, 검증 V3 |
 | 구도 세이프 % | `(1 - 크롭×2) × 100` | 영상 프롬프트의 "중앙 N% 안에" 지시 |
 | ASS 색 | hex → `&HAABBGGRR` | 자막 스타일 |
+| CSS 폰트 스택 | 자막 폰트 + 제목 폰트 + 폴백 | 콘티 시트 HTML |
+| ffmpeg 필터 | `ass=subtitles.ass[:fontsdir=…]` | 번인 스크립트 |
 
 크롭이 `0`이면 구도 지시 문장 자체가 빠진다. "중앙 100%"는 무의미하기 때문이다.
+
+### 폰트
+
+폰트를 바꾸면 **자막·콘티 시트·번인 명령이 한꺼번에** 따라온다.
+
+```json
+{
+  "base": "ttokttok",
+  "subtitle":  { "font": "Pretendard" },
+  "titleCard": { "font": "Black Han Sans" },
+  "fonts": { "webStack": ["Noto Sans KR", "sans-serif"], "dir": "C:/Users/me/fonts" }
+}
+```
+
+| 항목 | 뜻 |
+|---|---|
+| `subtitle.font` | 자막 폰트. ASS `Style: Sub` 에 들어간다 |
+| `titleCard.font` | 제목 카드 폰트. 생략하면 자막 폰트를 따른다 |
+| `fonts.webStack` | 콘티 시트(HTML)의 폴백. 자막·제목 폰트가 자동으로 앞에 붙는다 |
+| `fonts.dir` | 시스템에 안 깔린 폰트를 쓸 때. ffmpeg `fontsdir=` 로 들어가며 경로의 콜론은 자동 이스케이프 |
+
+**libass는 폰트를 못 찾으면 경고 없이 다른 폰트로 그린다.** 결과 영상을 보기 전엔 모른다. 그래서 `burn.ps1` 머리에 기대하는 폰트 이름을 적어두고, 실행이 끝나면 확인하라고 알린다. 시스템에 없는 폰트라면 `fonts.dir`를 지정한다.
 
 ### 색
 

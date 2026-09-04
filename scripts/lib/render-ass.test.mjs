@@ -72,10 +72,20 @@ test('중괄호는 이스케이프', () => {
 });
 
 test('burn.ps1: 상대 경로 ass 필터, ffmpeg·입력 파일 검사', () => {
-  const ps = renderBurnPs1();
+  const ps = renderBurnPs1(ttok);
   assert.ok(ps.includes('Set-Location $PSScriptRoot'));
   assert.ok(ps.includes('-vf "ass=subtitles.ass"'));
   assert.ok(ps.includes('Get-Command ffmpeg'));
   assert.ok(ps.includes('Test-Path $In'));
   assert.ok(ps.includes('-c:a copy'));
+});
+
+test('burn.ps1: fonts.dir 를 주면 fontsdir 인자가 박힌다', () => {
+  const p = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', fonts: { dir: 'C:/fonts' } } } });
+  assert.ok(renderBurnPs1(p).includes('-vf "ass=subtitles.ass:fontsdir=C\\:/fonts"'));
+});
+
+test('burn.ps1: 쓰는 폰트 이름을 적어둔다 — 없으면 조용히 대체되므로', () => {
+  const ps = renderBurnPs1(ttok);
+  assert.ok(ps.includes('Malgun Gothic'));
 });

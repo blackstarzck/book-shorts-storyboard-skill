@@ -97,7 +97,7 @@ if (!report.ok) {
 write('h3-prompt.txt', renderH3Prompt(sb, profile));
 write('panel-prompts.txt', renderPanelPromptsText(sb));
 write('subtitles.ass', renderAss(sb, profile), { bom: true });
-write('burn.ps1', renderBurnPs1(), { bom: true });
+write('burn.ps1', renderBurnPs1(profile), { bom: true });
 
 // 3. 패널 (선택) — codex exec 1회
 if (flags.has('--panels')) {
@@ -116,7 +116,7 @@ if (flags.has('--panels')) {
 
 // 4. 콘티 시트
 const panelExists = (file) => existsSync(join(dir, file));
-write('contisheet.html', renderContiSheet(sb, template, { panelExists, evidence }));
+write('contisheet.html', renderContiSheet(sb, template, { panelExists, evidence, profile }));
 if (!flags.has('--no-png')) {
   const png = captureSheetPng(join(dir, 'contisheet.html'), join(dir, 'contisheet.png'), sheetHeight(sb.panels.length));
   report.sheetPng = png;
