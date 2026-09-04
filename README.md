@@ -1,8 +1,10 @@
 # book-shorts-storyboard
 
-도서 소개 **15초 쇼츠** 한 편을 기획부터 자막까지 만들어 주는 [Claude Code](https://claude.com/claude-code) 스킬.
+도서 소개 **15초 쇼츠** 한 편을 기획부터 자막까지 만들어 주는 [Agent Skill](https://agentskills.io).
 
 책 정보를 넣으면 **근거가 붙은 컨셉 3안**을 받고, 하나를 고르면 스토리보드·영상 프롬프트·콘티 시트·자막·번인 스크립트가 한 번에 나온다. 영상 생성(MiniMax H3 등)과 업로드만 사람이 한다.
+
+**특정 AI 서비스에 묶이지 않는다.** [Agent Skills 개방 표준](https://agentskills.io/specification)을 따르므로 Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, VS Code, OpenCode 등 40여 개 클라이언트에서 동일하게 동작한다. 엔진은 순수 Node.js(외부 패키지 0)라 **에이전트 없이 터미널에서도 그대로 돈다.**
 
 <p align="center">
   <img src="examples/hyeonjingeon-lucky-day/contisheet.png" width="620" alt="현진건 「운수 좋은 날」 콘티 시트">
@@ -34,49 +36,76 @@
 
 ## 요구사항
 
-| | 용도 | 필수 |
-|---|---|---|
-| **Node.js 20+** (24 권장) | 빌드 스크립트. 외부 의존성 0, 내장 모듈만 | 예 |
-| **Claude Code** | 스킬 실행 | 예 |
-| 영상 모델 접근 | MiniMax H3(Hailuo) 웹 또는 ComfyUI API 노드 | 영상을 만들 때 |
-| **ffmpeg** | 자막 번인 (`winget install Gyan.FFmpeg`) | 자막을 입힐 때 |
-| **Codex CLI** | 콘티 패널 이미지 생성 (내장 `image_gen`) | 패널을 뽑을 때 |
-| **Edge 또는 Chrome** | 콘티 시트 PNG 캡처 (헤드리스) | 시트 이미지를 뽑을 때 |
+**필수는 Node.js 20+ 하나뿐이다.** 외부 패키지를 쓰지 않고 내장 모듈만 쓴다.
 
-없어도 스킬은 동작한다. 패널이 없으면 시트에 프롬프트 카드가 들어가고, 브라우저가 없으면 HTML만 남는다. 둘 다 경고로 끝나고 빌드는 성공한다.
+| | 용도 | 없으면 |
+|---|---|---|
+| **Node.js 20+** (24 권장) | 빌드 스크립트 | 동작 안 함 |
+| 에이전트 (아무거나) | 컨셉 3안 제시와 `storyboard.json` 작성 | `storyboard.json`을 손으로 써도 된다 |
+| 영상 모델 접근 | MiniMax H3(Hailuo) 등 | 프롬프트만 나오고 영상은 안 만들어진다 |
+| **ffmpeg** | 자막 번인 | `subtitles.ass`를 편집기에서 직접 입힌다 |
+| 이미지 생성 CLI | 콘티 패널 | 시트에 프롬프트 카드가 들어간다. `panel-prompts.txt`로 손수 뽑으면 된다 |
+| Chromium 계열 브라우저 | 콘티 시트 PNG 캡처 | `contisheet.html`만 남는다. 브라우저로 열면 된다 |
+
+아래 넷은 없어도 **빌드가 성공한다.** 경고만 남고 exit 0이다.
 
 ## 설치
 
-개인 스킬로 설치하면 모든 프로젝트에서 쓸 수 있다.
+### 에이전트에 스킬로 설치
+
+`.agents/skills/`가 **여러 에이전트가 함께 읽는 벤더 중립 경로**다. 여기 두는 걸 권한다.
 
 ```bash
-git clone https://github.com/blackstarzck/book-shorts-storyboard-skill.git ~/.claude/skills/book-shorts-storyboard
+git clone https://github.com/blackstarzck/book-shorts-storyboard-skill.git ~/.agents/skills/book-shorts-storyboard
 ```
 
-특정 프로젝트에서만 쓰려면 그 프로젝트 안에 둔다. 레포에 같이 버전 관리된다.
+특정 클라이언트만 쓴다면 그쪽 경로에 둬도 된다.
+
+| 클라이언트 | 개인 | 프로젝트 |
+|---|---|---|
+| **벤더 중립** (Codex 기본, Copilot·Gemini도 읽음) | `~/.agents/skills/` | `.agents/skills/` |
+| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` |
+| GitHub Copilot | `~/.copilot/skills/` | `.github/skills/` |
+
+프로젝트 스킬로 두면 레포에 같이 버전 관리된다. Windows PowerShell이면 `~` 대신 `$HOME`.
+
+> **폴더 이름을 바꾸지 말 것.** 스펙상 `name` 필드와 부모 디렉터리 이름이 같아야 한다.
+> 저장소 이름이 `-skill`로 끝나므로 위 명령처럼 **대상 경로를 반드시 지정**한다.
+
+설치 후 에이전트를 새로 시작하면 `book-shorts-storyboard`로 잡힌다. 실행 중인 세션에는 반영되지 않는다.
+
+### 에이전트 없이 — 그냥 CLI로
+
+스킬로 설치하지 않아도 된다. 클론해서 `storyboard.json`을 쓰고 빌드하면 끝이다.
 
 ```bash
-git clone https://github.com/blackstarzck/book-shorts-storyboard-skill.git .claude/skills/book-shorts-storyboard
+git clone https://github.com/blackstarzck/book-shorts-storyboard-skill.git
+cd book-shorts-storyboard-skill
+
+mkdir -p out && cp scripts/fixtures/kafka-metamorphosis.json out/storyboard.json
+node scripts/build-storyboard.mjs out --no-png
 ```
 
-Windows PowerShell이면 `~` 대신 `$HOME`을 쓴다.
+`scripts/fixtures/kafka-metamorphosis.json`이 스키마 정본이다. 이걸 복사해 고치면 된다.
+검증에 걸리면 어떤 규칙이 왜 깨졌는지 알려준다.
 
-설치 후 Claude Code를 새로 시작하면 `/book-shorts-storyboard`로 잡힌다. 실행 중인 세션에는 반영되지 않는다.
-
-설치 확인:
+### 설치 확인
 
 ```bash
-node --test "~/.claude/skills/book-shorts-storyboard/scripts/**/*.test.mjs"
+node --test "scripts/**/*.test.mjs"
 ```
 
-70개가 전부 통과하면 정상이다.
+74개가 전부 통과하면 정상이다.
 
 ## 사용법
 
-Claude Code에서 스킬을 부르고 책 정보를 준다. 제목·저자·줄거리면 충분하고, 인용구가 있으면 더 좋다.
+에이전트에서 스킬을 부르고 책 정보를 준다. 제목·저자·줄거리면 충분하고, 인용구가 있으면 더 좋다.
+
+호출 방법은 클라이언트마다 다르다. 슬래시 명령을 쓰는 곳도 있고(`/book-shorts-storyboard`), 설명이 맞으면 알아서 활성화되는 곳도 있다. 어느 쪽이든 이름을 언급하면 잡힌다.
 
 ```
-/book-shorts-storyboard
+book-shorts-storyboard 스킬로 만들어줘.
 
 변신 / 프란츠 카프카
 어느 날 아침 그레고르 잠자는 불안한 꿈에서 깨어나 자신이 거대한 벌레로
@@ -101,10 +130,28 @@ node "<스킬 폴더>/scripts/build-storyboard.mjs" <출력 폴더> --panels
 | 플래그 | 뜻 |
 |---|---|
 | `--no-png` | 콘티 시트 PNG 캡처를 건너뛴다. 빠른 반복용 |
-| `--panels` | 콘티 패널 이미지를 생성한다 (Codex `image_gen`, 패널당 1~2분) |
+| `--panels` | 콘티 패널 이미지를 생성한다 (패널당 1~2분) |
 | `--force-panels` | 이미 있는 패널도 다시 만든다 |
+| `--panel-cmd <명령>` | 패널을 만들 CLI를 지정한다. 아래 참조 |
 
 검증에 실패하면 exit 1로 멈추고 어떤 규칙이 왜 깨졌는지 알려준다. 이때 산출물은 만들지 않는다. 반쪽짜리를 남기지 않기 위해서다.
+
+### 콘티 패널 백엔드
+
+패널 생성에 필요한 조건은 하나다. **지시문 파일을 읽고 이미지를 만들어 지정한 경로에 저장할 수 있는 CLI.** 어느 서비스든 상관없다.
+
+| 순위 | 방법 |
+|---|---|
+| 1 | `--panel-cmd "<명령> {prompt}"` |
+| 2 | 환경변수 `BOOK_SHORTS_PANEL_CMD` |
+| 3 | 스킬 폴더의 `panel-backend.json` — `{"command": "<명령> {prompt}"}` |
+| 4 | 기본 프리셋 `codex` |
+
+`{prompt}` 자리에 지시문이 인용돼 들어간다. 자리표시자가 없으면 끝에 붙는다.
+
+내장 프리셋은 `codex` 하나뿐이다. **실제로 확인한 것만 싣는다** — 검증하지 않은 CLI의 플래그를 넣으면 쓰는 사람은 그게 검증된 줄 안다. 다른 도구는 위 방법으로 붙인다.
+
+**백엔드가 아예 없어도 된다.** `panel-prompts.txt`에 패널별 프롬프트가 파일 경로와 함께 그대로 있다. 아무 이미지 도구에 붙여넣고 결과를 `panels/panel-NN.png`로 저장한 뒤 `--panels` 없이 다시 빌드하면 시트가 채워진다. 이 경로가 가장 이식성이 높다.
 
 ## 산출물
 

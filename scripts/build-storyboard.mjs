@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * storyboard.json → 전 산출물.
- *   node build-storyboard.mjs <dir> [--panels] [--force-panels] [--no-png]
+ *   node build-storyboard.mjs <dir> [--panels] [--force-panels] [--no-png] [--panel-cmd <명령>]
  * exit 0 성공 (패널·PNG 실패는 경고) · 1 검증 실패 · 2 사용법/파싱 오류
+ *
+ * 특정 AI 서비스에 묶이지 않는다. Node 20+ 만 있으면 에이전트 없이도 돈다.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
@@ -14,19 +16,27 @@ import { renderAss } from './lib/render-ass.mjs';
 import { renderBurnPs1 } from './lib/render-burn.mjs';
 import { renderStoryboardMd } from './lib/render-md.mjs';
 import { renderContiSheet } from './lib/render-sheet.mjs';
-import { generatePanels } from './lib/codex-panels.mjs';
+import { generatePanels } from './lib/panel-backend.mjs';
 import { captureSheetPng, sheetHeight } from './lib/sheet-png.mjs';
 
 const SKILL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BOM = String.fromCharCode(0xfeff); // UTF-8 BOM
 
 const args = process.argv.slice(2);
-const flags = new Set(args.filter((a) => a.startsWith('--')));
-const dirArg = args.find((a) => !a.startsWith('--'));
+// --panel-cmd 는 값을 하나 먹는다. `--panel-cmd=…` 형태도 받는다.
+const panelCmdIdx = args.findIndex((a) => a === '--panel-cmd' || a.startsWith('--panel-cmd='));
+const panelCmd = panelCmdIdx === -1
+  ? undefined
+  : (args[panelCmdIdx].includes('=') ? args[panelCmdIdx].split('=').slice(1).join('=') : args[panelCmdIdx + 1]);
+const consumed = new Set(panelCmdIdx === -1 ? [] : [panelCmdIdx, panelCmdIdx + 1]);
+const flags = new Set(args.filter((a, i) => a.startsWith('--') && !consumed.has(i)));
+const dirArg = args.find((a, i) => !a.startsWith('--') && !consumed.has(i));
 
 if (!dirArg) {
-  console.error('사용: node build-storyboard.mjs <출력 디렉터리> [--panels] [--force-panels] [--no-png]');
+  console.error('사용: node build-storyboard.mjs <출력 디렉터리> [--panels] [--force-panels] [--no-png] [--panel-cmd <명령>]');
   console.error('  <출력 디렉터리>/storyboard.json 을 읽어 산출물을 같은 폴더에 쓴다.');
+  console.error('  --panel-cmd  콘티 패널을 만들 CLI 명령 템플릿. {prompt} 자리에 지시문이 들어간다.');
+  console.error('               생략하면 codex 프리셋. 환경변수 BOOK_SHORTS_PANEL_CMD 로도 지정한다.');
   process.exit(2);
 }
 
@@ -67,11 +77,16 @@ write('burn.ps1', renderBurnPs1(), { bom: true });
 
 // 3. 패널 (선택) — codex exec 1회
 if (flags.has('--panels')) {
-  console.log('콘티 패널 생성 중 (codex exec, 수 분 소요)…');
-  report.panels = generatePanels(dir, sb, { force: flags.has('--force-panels') });
+  console.log('콘티 패널 생성 중 (수 분 소요)…');
+  report.panels = generatePanels(dir, sb, { force: flags.has('--force-panels'), skillRoot: SKILL_ROOT, cli: panelCmd });
   const p = report.panels;
-  if (p.ran) console.log(`  생성 ${p.generated.length} · 건너뜀 ${p.skipped.length} · 누락 ${p.missing.length}${p.error ? ` · 오류: ${p.error}` : ''}`);
-  else console.log(`  전 패널 이미 존재 (건너뜀 ${p.skipped.length}). 다시 만들려면 --force-panels`);
+  if (p.ran) {
+    console.log(`  백엔드: ${p.backend}`);
+    console.log(`  생성 ${p.generated.length} · 건너뜀 ${p.skipped.length} · 누락 ${p.missing.length}${p.error ? ` · 오류: ${p.error}` : ''}`);
+    if (p.hint) console.log(`  ${p.hint}`);
+  } else {
+    console.log(`  전 패널 이미 존재 (건너뜀 ${p.skipped.length}). 다시 만들려면 --force-panels`);
+  }
   if (p.missing.length) report.warnings.push({ rule: 'PANELS', message: `누락 패널: ${p.missing.join(', ')} — 시트는 플레이스홀더로 채움` });
 }
 

@@ -1,6 +1,11 @@
 ---
 name: book-shorts-storyboard
-description: Use when asked for a 15-second book-introduction short for the Ttokttok video feed — 도서 소개 쇼츠, 영상 게시물, 콘티, 스토리보드, MiniMax H3(Hailuo) 프롬프트, 쇼츠 자막 — or when a docs/shorts/*/storyboard.json must be written, fixed, validated, or rebuilt.
+description: Use when asked for a 15-second book-introduction short (vertical 9:16) — 도서 소개 쇼츠, 영상 게시물, 콘티, 스토리보드, 영상 프롬프트, 쇼츠 자막 — or when a storyboard.json must be written, fixed, validated, or rebuilt into a video prompt, conti sheet, ASS subtitles and burn-in script.
+license: MIT
+compatibility: Requires Node.js 20+ (no external packages). Optional, each degrades gracefully if absent - ffmpeg for subtitle burn-in, any image-capable agent CLI for conti panels, Chromium-based browser for sheet capture.
+metadata:
+  version: "1.1"
+  repository: https://github.com/blackstarzck/book-shorts-storyboard-skill
 ---
 
 # 도서 소개 15초 쇼츠 스토리보드
@@ -33,17 +38,19 @@ description: Use when asked for a 15-second book-introduction short for the Ttok
 5. **`docs/shorts/<slug>/storyboard.json` 작성** — 스키마·허용값은 `scripts/fixtures/kafka-metamorphosis.json`
    그대로. 기각한 2안도 `concepts`에 넣는다. 쓰기 전에 `references/h3-prompt-spec.md`,
    `references/conti-panel-spec.md`를 읽는다.
-6. **빌드** — `<이 스킬 폴더>`는 이 SKILL.md가 로드될 때 알려주는 경로다 (보통
-   `~/.claude/skills/book-shorts-storyboard` 또는 `<프로젝트>/.claude/skills/book-shorts-storyboard`).
+6. **빌드** — `<이 스킬 폴더>`는 이 SKILL.md가 놓인 디렉터리다. 클라이언트가 스킬을 로드할 때
+   알려주며, 보통 `~/.agents/skills/book-shorts-storyboard` 또는 클라이언트별 스킬 폴더 아래에 있다.
    검증 실패(exit 1)면 stderr의 `[V?]` 메시지대로 JSON을 고쳐 재실행.
    ```bash
    node "<이 스킬 폴더>/scripts/build-storyboard.mjs" docs/shorts/<slug> --no-png
    ```
-7. **콘티 패널** — 사용자에게 **"수 분 소요(패널당 약 1분)"를 먼저 알리고** 실행. Codex 내장
-   `image_gen`이 `panels/panel-NN.png`를 만들고 Edge가 `contisheet.png`를 캡처한다.
-   누락·가로 패널은 `--force-panels`. codex가 죽으면 `references/conti-panel-spec.md` 진단 절.
+7. **콘티 패널** — 사용자에게 **"수 분 소요(패널당 약 1분)"를 먼저 알리고** 실행. 이미지 생성이
+   가능한 CLI가 `panels/panel-NN.png`를 만들고 Chromium 계열 브라우저가 `contisheet.png`를 캡처한다.
+   누락·가로 패널은 `--force-panels`. 실패해도 exit 0이고 시트는 플레이스홀더로 채워진다.
+   백엔드 설정과 진단은 `references/conti-panel-spec.md`.
    ```bash
    node "<이 스킬 폴더>/scripts/build-storyboard.mjs" docs/shorts/<slug> --panels
+   # 다른 도구를 쓰려면: --panel-cmd "<명령> {prompt}"
    ```
 8. **결과 안내** — `storyboard.md` "제작 절차" 4단계(H3에 `h3-prompt.txt` 붙여넣기 → mp4를 `input.mp4`로
    저장 → `.\burn.ps1` → 관리자 업로드)와 파일 목록을 전달한다.

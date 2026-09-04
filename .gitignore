@@ -13,3 +13,6 @@ Thumbs.db
 
 # examples/ 의 contisheet.png 는 쇼케이스용이라 예외로 추적한다
 !examples/*/contisheet.png
+
+# 패널 백엔드 설정은 개인 환경이라 커밋하지 않는다
+panel-backend.json

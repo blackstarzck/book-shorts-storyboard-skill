@@ -37,18 +37,34 @@ DrawStory(패널당 동작 1개).
 - 상한 6인 이유: H3 레퍼런스가 9장이라 전량 재투입 가능
 - 패널 01은 H3 first-frame으로도 쓸 수 있다
 
-## 생성 — Codex 내장 image_gen
+## 생성 — 백엔드는 갈아끼운다
 
 `node scripts/build-storyboard.mjs <dir> --panels`
 
-- `codex exec` **1회**로 전 패널 생성. 지시문은 `<dir>/panel-instruction.txt`에 쓰고
-  codex가 읽게 한다 (셸 인용 문제 회피)
-- 결과는 `~/.codex/generated_images/<uuid>/ig_*.png` → codex가 `panels/panel-NN.png`로 복사
+이 스킬은 특정 AI 서비스에 묶이지 않는다. 패널 생성에 필요한 조건은 하나다.
+**지시문 파일을 읽고 이미지를 만들어 지정한 경로에 저장할 수 있는 CLI.**
+
+- 세션 **1회**로 전 패널을 만든다. 패널마다 세션을 띄우면 분 단위로 낭비된다
+- 지시문은 `<dir>/panel-instruction.txt`에 쓰고 CLI가 읽게 한다 (셸 인용 문제 회피)
 - 이미 있는 패널은 건너뛴다. 다시 만들려면 `--force-panels`
-- 누락되면 시트는 플레이스홀더(프롬프트 카드)로 채우고 exit 0 + 경고
+- 누락되면 시트는 플레이스홀더(프롬프트 카드)로 채우고 **exit 0 + 안내**로 끝난다
 - 소요: 패널당 1~2분. 사용자에게 미리 알린다
 
-### codex 호출 인자 (`CODEX_ARGS`)
+### 백엔드 지정 — 우선순위
+
+| 순위 | 방법 |
+|---|---|
+| 1 | `--panel-cmd "<명령> {prompt}"` |
+| 2 | 환경변수 `BOOK_SHORTS_PANEL_CMD` |
+| 3 | 스킬 폴더의 `panel-backend.json` — `{"command": "<명령> {prompt}"}` |
+| 4 | 기본 프리셋 `codex` |
+
+`{prompt}` 자리에 지시문 파일을 읽으라는 문장이 인용돼 들어간다. 자리표시자가 없으면 끝에 붙는다.
+
+**프리셋은 실측한 것만 싣는다.** 확인하지 않은 CLI의 플래그를 추측해 넣으면 쓰는 사람은
+그게 검증된 줄 안다. 지금 프리셋은 `codex` 하나뿐이고, 나머지는 위 방법으로 붙인다.
+
+### codex 프리셋 (기본값)
 
 ```
 codex exec -c service_tier=fast -c model=gpt-5.5 --skip-git-repo-check "<프롬프트>"
@@ -71,8 +87,11 @@ variant 'max'`와 MCP 인증 실패는 무해하다.
 지정하지 않으면 1536×1024 가로로 나온다. 지시문에 "VERTICAL PORTRAIT (9:16)"를 넣는다.
 가로로 나오면 `--force-panels`로 재생성.
 
-## 다른 백엔드로 뽑을 때
+## 백엔드 없이 — 손으로 뽑을 때
 
-`panel-prompts.txt`에 패널별 프롬프트가 있다. ChatGPT·Midjourney·Higgsfield 등에
-붙여넣고 결과를 `panels/panel-NN.png`로 저장한 뒤 `--panels` 없이 다시 빌드하면 시트가
-채워진다. Midjourney는 끝에 `--ar 9:16 --no text` 추가.
+CLI를 안 붙여도 된다. `panel-prompts.txt`에 패널별 프롬프트가 파일 경로와 함께 그대로 있다.
+ChatGPT·Gemini·Midjourney·Higgsfield 등 아무 이미지 도구에 붙여넣고 결과를
+`panels/panel-NN.png`로 저장한 뒤 `--panels` **없이** 다시 빌드하면 시트가 채워진다.
+Midjourney는 끝에 `--ar 9:16 --no text`를 추가한다.
+
+이 경로가 가장 이식성이 높다. 어떤 서비스에도 의존하지 않는다.
