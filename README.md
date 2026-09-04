@@ -225,8 +225,31 @@ node scripts/build-storyboard.mjs out --profile ./my-app.json
 | ASS 색 | hex → `&HAABBGGRR` | 자막 스타일 |
 | CSS 폰트 스택 | 자막 폰트 + 제목 폰트 + 폴백 | 콘티 시트 HTML |
 | ffmpeg 필터 | `ass=subtitles.ass[:fontsdir=…]` | 번인 스크립트 |
+| ASS 정렬 | 이름 → 숫자패드 1~9 | 자막 스타일 |
 
 크롭이 `0`이면 구도 지시 문장 자체가 빠진다. "중앙 100%"는 무의미하기 때문이다.
+
+### 위치
+
+자막과 제목 카드를 프레임 어디로든 옮긴다.
+
+```json
+{
+  "base": "ttokttok",
+  "subtitle":  { "align": "top-center",    "marginX": 288, "marginV": 256 },
+  "titleCard": { "align": "bottom-center", "marginV": 700 }
+}
+```
+
+| 항목 | 뜻 |
+|---|---|
+| `align` | 기준점. `bottom-left` `bottom-center` `bottom-right` `middle-left` `middle-center` `middle-right` `top-left` `top-center` `top-right`. ASS 숫자(1~9)도 받는다 |
+| `marginX` | 좌우 여백. 줄당 글자수가 여기서 유도된다 |
+| `marginV` | **정렬된 기준 변에서의 거리.** 하단 정렬이면 아래에서, 상단 정렬이면 위에서. 중앙 정렬에서는 무시된다 |
+
+정렬을 이름으로 쓰는 이유는 ASS의 숫자패드 배치를 외우게 하지 않기 위해서다. `8`을 상단이라고 착각해 `5`(정중앙)를 쓰는 실수가 흔하다. **알 수 없는 값은 빌드를 멈춘다** — 조용히 하단 중앙으로 떨어지면 결과를 볼 때까지 모른다.
+
+> `marginBottom`은 `marginV`로 이름이 바뀌었다. 정렬을 열면서 "하단"이라는 이름이 거짓이 됐기 때문이다. 예전 이름도 별칭으로 계속 받는다.
 
 ### 폰트
 

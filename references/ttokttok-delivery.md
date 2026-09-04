@@ -42,17 +42,17 @@
 {
   "canvas":    { "width": 1440, "height": 2560 },
   "subtitle":  { "font": "Malgun Gothic", "size": 72, "outline": 6, "shadow": 0,
-                 "marginX": 288, "marginBottom": 384, "maxLines": 2,
+                 "marginX": 288, "marginV": 384, "maxLines": 2, "align": "bottom-center",
                  "color": "#FFFFFF", "outlineColor": "#000000", "shadowColor": "#00000080" },
-  "titleCard": { "size": 96, "outline": 8, "shadow": 0 },
+  "titleCard": { "size": 96, "outline": 8, "shadow": 0, "align": "middle-center", "marginV": 0 },
   "framing":   { "cropPerSide": 0.06 }
 }
 ```
 
 | 스타일 | 폰트 | 크기 | 외곽선 | 정렬 | 마진 L/R/V |
 |---|---|---|---|---|---|
-| Sub | Malgun Gothic Bold | 72 | 6 검정 | 2 (하단 중앙) | 288 / 288 / 384 |
-| Title | Malgun Gothic Bold | 96 | 8 검정 | 5 (정중앙) | 288 / 288 / 0 |
+| Sub | Malgun Gothic Bold | 72 | 6 검정 | `bottom-center` (2) | 288 / 288 / 384 |
+| Title | Malgun Gothic Bold | 96 | 8 검정 | `middle-center` (5) | 288 / 288 / 0 |
 
 **유도되는 값** — 좌표를 바꾸면 자동으로 따라온다. 따로 적어두지 않는다.
 
@@ -63,10 +63,13 @@
 | ASS 색 | hex → `&HAABBGGRR` (BGR 역순, 알파 반전) | `#FFFFFF` → `&H00FFFFFF` |
 | CSS 폰트 스택 | 자막 폰트 + 제목 폰트 + `fonts.webStack` | `"Malgun Gothic", "Noto Sans KR", …` |
 | ffmpeg 필터 | `fonts.dir` 있으면 `fontsdir=` 추가 | `ass=subtitles.ass` |
+| ASS 정렬 | 이름 → 숫자패드 1~9 | `bottom-center` → `2` |
 
 구도 세이프는 H3 프롬프트에 자동 삽입된다. `cropPerSide`가 0이면 그 문장 자체를 넣지
 않는다 — "중앙 100%"는 무의미하기 때문이다.
 
+- `marginV`는 정렬된 기준 변에서의 거리다. 하단 정렬이면 아래에서, 상단 정렬이면 위에서.
+  예전 이름 `marginBottom`도 별칭으로 받는다 — 정렬을 열면서 "하단"이 거짓이 됐다
 - 파일은 UTF-8 **BOM** (PowerShell 5.1 호환)
 - 폰트: `Malgun Gothic`은 Windows 기본이라 별도 설치가 필요 없다. 다른 폰트를 쓰면
   프로파일에 `fonts.dir`를 지정한다 — `burn.ps1`의 `fontsdir=` 인자로 유도된다.

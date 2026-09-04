@@ -21,10 +21,10 @@ export const BUILTIN_PROFILES = {
     canvas: { width: 1080, height: 1920 },
     subtitle: {
       font: 'Noto Sans KR', size: 54, outline: 5, shadow: 0,
-      marginX: 130, marginBottom: 384, maxLines: 2,
+      marginX: 130, marginV: 384, maxLines: 2, align: 'bottom-center',
       color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
     },
-    titleCard: { size: 72, outline: 6, shadow: 0 },
+    titleCard: { size: 72, outline: 6, shadow: 0, align: 'middle-center', marginV: 0 },
     // webStack: 콘티 시트(HTML)가 자막 폰트를 못 찾았을 때의 폴백.
     // dir: 시스템에 안 깔린 폰트를 쓸 때 ffmpeg 에 넘길 폴더. null 이면 시스템 폰트.
     fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
@@ -39,10 +39,10 @@ export const BUILTIN_PROFILES = {
     canvas: { width: 1440, height: 2560 },
     subtitle: {
       font: 'Malgun Gothic', size: 72, outline: 6, shadow: 0,
-      marginX: 288, marginBottom: 384, maxLines: 2,
+      marginX: 288, marginV: 384, maxLines: 2, align: 'bottom-center',
       color: '#FFFFFF', outlineColor: '#000000', shadowColor: '#00000080',
     },
-    titleCard: { size: 96, outline: 8, shadow: 0 },
+    titleCard: { size: 96, outline: 8, shadow: 0, align: 'middle-center', marginV: 0 },
     fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
     framing: { cropPerSide: 0.06 },
   },
@@ -62,6 +62,29 @@ function mergeDeep(base, patch) {
 
 /** 자막 가독성 하한. WCAG AA 기준. 영상 위 자막은 배경을 못 고르므로 외곽선이 유일한 분리 수단이다. */
 export const MIN_CONTRAST = 4.5;
+
+/**
+ * ASS Alignment. 숫자패드 배치라 1이 좌하, 9가 우상이다.
+ * 이름으로 쓰게 하는 이유: 숫자만 보고 어디인지 아는 사람이 드물고,
+ * 8을 상단이라고 착각해 5(정중앙)를 쓰는 실수가 흔하다.
+ */
+export const ALIGNMENTS = {
+  'bottom-left': 1, 'bottom-center': 2, 'bottom-right': 3,
+  'middle-left': 4, 'middle-center': 5, 'middle-right': 6,
+  'top-left': 7, 'top-center': 8, 'top-right': 9,
+};
+
+const ALIGN_NUMBERS = new Set(Object.values(ALIGNMENTS));
+
+function toAlign(value, where) {
+  if (typeof value === 'number') {
+    if (!ALIGN_NUMBERS.has(value)) throw new Error(`${where}: 알 수 없는 정렬 ${value}. 1~9 (ASS 숫자패드) 이어야 한다.`);
+    return value;
+  }
+  const n = ALIGNMENTS[String(value ?? '').trim()];
+  if (!n) throw new Error(`${where}: 알 수 없는 정렬 '${value}'. ${Object.keys(ALIGNMENTS).join(' | ')} 중 하나이거나 1~9 숫자여야 한다.`);
+  return n;
+}
 
 /** 좌표·색에서 나오는 값들. 손으로 적어두지 않는다. */
 function derive(p) {
@@ -96,9 +119,30 @@ function derive(p) {
     ass: assFor(sub),
     // 제목 카드 색을 안 주면 자막 색을 그대로 쓴다
     assTitle: assFor(title),
+    // 이름 → ASS 숫자. 알 수 없는 값은 던진다 (조용히 하단 중앙으로 떨어지지 않는다)
+    align: {
+      subtitle: toAlign(sub.align, '자막 정렬'),
+      titleCard: toAlign(title.align, '제목 카드 정렬'),
+    },
     cssFontStack,
     assFilter,
   };
+}
+
+/**
+ * `marginBottom` → `marginV` 로 이름을 바꿨다. 정렬을 열면서 "하단"이라는 이름이
+ * 거짓이 됐기 때문이다 (상단 정렬에서는 상단으로부터의 거리다).
+ * 예전 이름으로 쓴 프로파일이 조용히 무시되지 않게 별칭으로 받는다.
+ */
+function migrate(p) {
+  for (const key of ['subtitle', 'titleCard']) {
+    const block = p[key];
+    if (block && block.marginBottom !== undefined) {
+      block.marginV = block.marginBottom;
+      delete block.marginBottom;
+    }
+  }
+  return p;
 }
 
 /** 값을 막지는 않는다. 고른 사람이 알고 고르게만 한다. */
@@ -156,7 +200,7 @@ export function resolveProfile({ cli, storyboard, name } = {}) {
   if (!base) throw new Error(`알 수 없는 base 프로파일: '${baseName}'`);
 
   const { base: _drop, ...overrides } = spec;
-  const merged = mergeDeep(base, overrides);
-  // derive 가 색을 변환하므로 형식 오류는 여기서 던진다 — 조용히 검정으로 떨어지지 않는다
+  const merged = migrate(mergeDeep(base, overrides));
+  // derive 가 색·정렬을 변환하므로 형식 오류는 여기서 던진다 — 조용히 기본값으로 떨어지지 않는다
   return { ...merged, name: baseName, source, derived: derive(merged), warnings: colorWarnings(merged) };
 }

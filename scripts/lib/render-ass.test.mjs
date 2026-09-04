@@ -20,6 +20,20 @@ test('스타일 2개: Sub(하단 중앙, 마진 288/384) · Title(정중앙)', (
   assert.ok(ass.includes('Style: Title,Malgun Gothic,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,8,0,5,288,288,0,1'));
 });
 
+test('정렬을 바꾸면 ASS Alignment 와 MarginV 가 따라온다', () => {
+  // 자막을 상단으로: Alignment 8, MarginV 는 위에서의 거리
+  const top = renderAss(fixture, resolveProfile({
+    storyboard: { delivery: { base: 'ttokttok', subtitle: { align: 'top-center', marginV: 256 } } },
+  }));
+  assert.ok(top.includes(',8,288,288,256,1'));
+
+  // 제목 카드도 옮길 수 있다 (예전엔 정중앙 0 고정)
+  const t = renderAss(fixture, resolveProfile({
+    storyboard: { delivery: { base: 'ttokttok', titleCard: { align: 'bottom-center', marginV: 700 } } },
+  }));
+  assert.ok(t.split('\n').find((l) => l.startsWith('Style: Title')).endsWith(',2,288,288,700,1'));
+});
+
 test('프로파일을 바꾸면 좌표·폰트·줄바꿈이 전부 따라온다', () => {
   const out = renderAss(fixture, resolveProfile({ name: 'generic-9x16' }));
   assert.ok(out.includes('PlayResX: 1080'));

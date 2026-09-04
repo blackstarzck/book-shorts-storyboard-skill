@@ -129,5 +129,6 @@ write('build-report.json', JSON.stringify(report, null, 2));
 
 console.log(`검증 통과 · 내레이션 ${report.metrics.syllables}음절 · 큐 ${report.metrics.cues} · 샷 ${report.metrics.shots} · 패널 ${report.metrics.panels} · 프롬프트 ${report.metrics.promptChars}자`);
 console.log(`프로파일 ${profile.name} (${profile.source}) · ${profile.canvas.width}×${profile.canvas.height} · 자막 ${profile.subtitle.font} ${profile.subtitle.size}px ${profile.subtitle.color}/${profile.subtitle.outlineColor} · 줄당 ${profile.derived.maxLineLen}자`);
+console.log(`  위치 자막 ${profile.subtitle.align} 여백 ${profile.subtitle.marginX}/${profile.subtitle.marginV} · 제목 ${profile.titleCard.align} 여백 ${profile.titleCard.marginV ?? 0}`);
 for (const w of report.warnings) console.log(`  (경고 ${w.rule}) ${w.message}`);
 console.log(`산출물: ${dir}`);

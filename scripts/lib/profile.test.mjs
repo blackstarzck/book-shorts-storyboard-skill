@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { BUILTIN_PROFILES, DEFAULT_PROFILE, resolveProfile } from './profile.mjs';
+import { BUILTIN_PROFILES, DEFAULT_PROFILE, ALIGNMENTS, resolveProfile } from './profile.mjs';
 
 test('내장 프로파일: 범용이 기본, 앱별은 예시로 함께 싣는다', () => {
   assert.deepEqual(Object.keys(BUILTIN_PROFILES).sort(), ['generic-9x16', 'ttokttok']);
@@ -140,6 +140,54 @@ test('fonts.dir 를 주면 ffmpeg 인자로 유도된다 — 경로의 콜론을
 
   const none = resolveProfile({ name: 'ttokttok' });
   assert.equal(none.derived.assFilter, 'ass=subtitles.ass');
+});
+
+test('정렬: 이름으로 쓰고 ASS 숫자로 유도된다', () => {
+  // ASS Alignment는 숫자패드 배치 (1 좌하 ~ 9 우상). 숫자를 외우게 하지 않는다.
+  assert.equal(ALIGNMENTS['bottom-center'], 2);
+  assert.equal(ALIGNMENTS['bottom-left'], 1);
+  assert.equal(ALIGNMENTS['middle-center'], 5);
+  assert.equal(ALIGNMENTS['top-center'], 8);
+  assert.equal(ALIGNMENTS['top-right'], 9);
+
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.subtitle.align, 'bottom-center');
+  assert.equal(p.titleCard.align, 'middle-center');
+  assert.equal(p.derived.align.subtitle, 2);
+  assert.equal(p.derived.align.titleCard, 5);
+});
+
+test('정렬을 바꾸면 유도값이 따라온다. 숫자를 직접 줘도 받는다', () => {
+  const top = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', subtitle: { align: 'top-center' } } } });
+  assert.equal(top.derived.align.subtitle, 8);
+
+  const raw = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', subtitle: { align: 7 } } } });
+  assert.equal(raw.derived.align.subtitle, 7);
+});
+
+test('알 수 없는 정렬은 던진다 — 조용히 하단 중앙으로 떨어지지 않는다', () => {
+  assert.throws(
+    () => resolveProfile({ storyboard: { delivery: { subtitle: { align: 'bottom' } } } }),
+    /bottom/,
+  );
+  assert.throws(
+    () => resolveProfile({ storyboard: { delivery: { subtitle: { align: 10 } } } }),
+    /10/,
+  );
+});
+
+test('marginV: 기준점에서의 거리. marginBottom 은 별칭으로 계속 받는다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.subtitle.marginV, 384);
+
+  // 예전 이름으로 쓴 프로파일도 깨지지 않는다
+  const legacy = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', subtitle: { marginBottom: 500 } } } });
+  assert.equal(legacy.subtitle.marginV, 500);
+
+  // 제목 카드도 위치를 잡을 수 있다 (예전엔 0 고정이었다)
+  const t = resolveProfile({ storyboard: { delivery: { base: 'ttokttok', titleCard: { align: 'top-center', marginV: 300 } } } });
+  assert.equal(t.derived.align.titleCard, 8);
+  assert.equal(t.titleCard.marginV, 300);
 });
 
 test('잘못된 색 형식은 프로파일 해석에서 던진다', () => {

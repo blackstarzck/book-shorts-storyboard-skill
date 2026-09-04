@@ -28,14 +28,16 @@ export function renderAss(sb, profile = resolveProfile({ storyboard: sb })) {
     '',
     '[V4+ Styles]',
     'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
-    // Alignment 2 = 하단 중앙, 5 = 정중앙
+    // 정렬은 프로파일에서 온다. MarginV는 정렬된 기준 변에서의 거리다
+    // (하단 정렬이면 아래에서, 상단 정렬이면 위에서). 중앙 정렬에서는 무시된다.
     styleLine('Sub', {
       font: sub.font, size: sub.size, outline: sub.outline, shadow: sub.shadow ?? 0,
-      alignment: 2, marginX: sub.marginX, marginV: sub.marginBottom, ass: derived.ass,
+      alignment: derived.align.subtitle, marginX: sub.marginX, marginV: sub.marginV, ass: derived.ass,
     }),
     styleLine('Title', {
       font: title.font ?? sub.font, size: title.size, outline: title.outline, shadow: title.shadow ?? 0,
-      alignment: 5, marginX: sub.marginX, marginV: 0, ass: derived.assTitle,
+      alignment: derived.align.titleCard, marginX: title.marginX ?? sub.marginX,
+      marginV: title.marginV ?? 0, ass: derived.assTitle,
     }),
     '',
     '[Events]',
