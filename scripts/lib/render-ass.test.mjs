@@ -20,6 +20,36 @@ test('스타일 2개: Sub(하단 중앙, 마진 288/384) · Title(정중앙)', (
   assert.ok(ass.includes('Style: Title,Malgun Gothic,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,8,0,5,288,288,0,1'));
 });
 
+test('애니메이션: 기본은 페이드, 큐마다 태그가 붙는다', () => {
+  assert.ok(ass.includes(',Sub,,0,0,0,,{\\fad(120,120)}아침에 눈을 떴는데'));
+  assert.ok(ass.includes(',Title,,0,0,0,,{\\fad(200,200)}변신 · 프란츠 카프카'));
+});
+
+test('애니메이션: none 이면 태그가 아예 없다 — 예전 출력 그대로', () => {
+  const out = renderAss(fixture, resolveProfile({
+    storyboard: { delivery: { base: 'ttokttok', motion: { subtitle: { type: 'none' }, titleCard: { type: 'none' } } } },
+  }));
+  assert.ok(!out.includes('{\\'));
+  assert.ok(out.includes(',Sub,,0,0,0,,아침에 눈을 떴는데'));
+});
+
+test('애니메이션: slide-up 은 정렬에서 계산한 앵커로 움직인다', () => {
+  const out = renderAss(fixture, resolveProfile({
+    storyboard: { delivery: { base: 'ttokttok', motion: { subtitle: { type: 'slide-up', inMs: 200, outMs: 120, distance: 40 } } } },
+  }));
+  // ttokttok bottom-center: x=720, y=2560-384=2176
+  assert.ok(out.includes('{\\fad(200,120)\\move(720,2216,720,2176,0,200)}아침에'));
+});
+
+test('애니메이션: 짧은 큐는 페이드가 잘린다', () => {
+  const sb = structuredClone(fixture);
+  sb.narration[0] = { start: 0.4, end: 1.2, text_ko: '짧은 큐' }; // 0.8초
+  const out = renderAss(sb, resolveProfile({
+    storyboard: { delivery: { base: 'ttokttok', motion: { subtitle: { type: 'fade', inMs: 400, outMs: 400 } } } },
+  }));
+  assert.ok(out.includes('{\\fad(320,320)}짧은 큐')); // 800 * 0.4
+});
+
 test('정렬을 바꾸면 ASS Alignment 와 MarginV 가 따라온다', () => {
   // 자막을 상단으로: Alignment 8, MarginV 는 위에서의 거리
   const top = renderAss(fixture, resolveProfile({
@@ -42,8 +72,8 @@ test('프로파일을 바꾸면 좌표·폰트·줄바꿈이 전부 따라온다
   assert.ok(out.includes(',2,130,130,384,1'));
   assert.ok(out.includes('Style: Title,Noto Sans KR,72,'));
   // 줄당 15자라 ttokttok(12자)에서 접히던 큐가 한 줄로 간다
-  assert.ok(out.includes(',Sub,,0,0,0,,몸이 벌레로 변해 있었다'));
-  assert.ok(ass.includes(',Sub,,0,0,0,,몸이 벌레로 변해\\N있었다'));
+  assert.ok(out.includes(',Sub,,0,0,0,,{\\fad(120,120)}몸이 벌레로 변해 있었다'));
+  assert.ok(ass.includes(',Sub,,0,0,0,,{\\fad(120,120)}몸이 벌레로 변해\\N있었다'));
 });
 
 test('프로파일을 안 주면 storyboard.delivery 를 따르고, 그것도 없으면 기본값', () => {
@@ -54,12 +84,12 @@ test('프로파일을 안 주면 storyboard.delivery 를 따르고, 그것도 �
 });
 
 test('큐 → Dialogue, 12자 줄바꿈은 \\N', () => {
-  assert.ok(ass.includes('Dialogue: 0,0:00:00.40,0:00:02.80,Sub,,0,0,0,,아침에 눈을 떴는데'));
-  assert.ok(ass.includes('Dialogue: 0,0:00:03.20,0:00:05.80,Sub,,0,0,0,,몸이 벌레로 변해\\N있었다'));
+  assert.ok(ass.includes('Dialogue: 0,0:00:00.40,0:00:02.80,Sub,,0,0,0,,{\\fad(120,120)}아침에 눈을 떴는데'));
+  assert.ok(ass.includes('Dialogue: 0,0:00:03.20,0:00:05.80,Sub,,0,0,0,,{\\fad(120,120)}몸이 벌레로 변해\\N있었다'));
 });
 
 test('제목 카드: Title 스타일, at부터 끝까지', () => {
-  assert.ok(ass.includes('Dialogue: 0,0:00:12.50,0:00:15.00,Title,,0,0,0,,변신 · 프란츠 카프카'));
+  assert.ok(ass.includes('Dialogue: 0,0:00:12.50,0:00:15.00,Title,,0,0,0,,{\\fad(200,200)}변신 · 프란츠 카프카'));
 });
 
 test('no_subtitle 큐는 자막에서 빠진다 — 말은 하되 화면에는 안 뜬다', () => {
@@ -67,8 +97,8 @@ test('no_subtitle 큐는 자막에서 빠진다 — 말은 하되 화면에는 �
   const sb = structuredClone(fixture);
   sb.narration.at(-1).no_subtitle = true;
   const out = renderAss(sb, ttok);
-  assert.ok(!out.includes(',Sub,,0,0,0,,카프카, 변신'));
-  assert.ok(out.includes(',Title,,0,0,0,,변신 · 프란츠 카프카')); // 제목 카드는 남는다
+  assert.ok(!out.includes('}카프카, 변신'));
+  assert.ok(out.includes(',Title,,0,0,0,,{\\fad(200,200)}변신 · 프란츠 카프카')); // 제목 카드는 남는다
   assert.equal(out.split('\n').filter((l) => l.includes(',Sub,')).length, fixture.narration.length - 1);
 });
 

@@ -64,12 +64,15 @@
 | CSS 폰트 스택 | 자막 폰트 + 제목 폰트 + `fonts.webStack` | `"Malgun Gothic", "Noto Sans KR", …` |
 | ffmpeg 필터 | `fonts.dir` 있으면 `fontsdir=` 추가 | `ass=subtitles.ass` |
 | ASS 정렬 | 이름 → 숫자패드 1~9 | `bottom-center` → `2` |
+| 애니메이션 태그 | 효과 + 큐 길이 + 앵커 | `{\fad(120,120)}` |
 
 구도 세이프는 H3 프롬프트에 자동 삽입된다. `cropPerSide`가 0이면 그 문장 자체를 넣지
 않는다 — "중앙 100%"는 무의미하기 때문이다.
 
 - `marginV`는 정렬된 기준 변에서의 거리다. 하단 정렬이면 아래에서, 상단 정렬이면 위에서.
   예전 이름 `marginBottom`도 별칭으로 받는다 — 정렬을 열면서 "하단"이 거짓이 됐다
+- 애니메이션은 `motion` 블록. 기본은 자막 120ms, 제목 200ms 페이드.
+  페이드가 큐보다 길면 한 변당 큐의 40%로 잘린다
 - 파일은 UTF-8 **BOM** (PowerShell 5.1 호환)
 - 폰트: `Malgun Gothic`은 Windows 기본이라 별도 설치가 필요 없다. 다른 폰트를 쓰면
   프로파일에 `fonts.dir`를 지정한다 — `burn.ps1`의 `fontsdir=` 인자로 유도된다.

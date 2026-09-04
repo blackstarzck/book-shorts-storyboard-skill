@@ -190,6 +190,19 @@ test('marginV: 기준점에서의 거리. marginBottom 은 별칭으로 계속 �
   assert.equal(t.titleCard.marginV, 300);
 });
 
+test('애니메이션: 기본은 페이드, 효과 이름은 프로파일 해석에서 검증된다', () => {
+  const p = resolveProfile({ name: 'ttokttok' });
+  assert.equal(p.motion.subtitle.type, 'fade');
+  assert.equal(p.derived.motion.subtitle, 'fade');
+  assert.equal(p.derived.motion.titleCard, 'fade');
+
+  // 렌더 도중이 아니라 여기서 던져야 스택 트레이스 대신 메시지가 나온다
+  assert.throws(
+    () => resolveProfile({ storyboard: { delivery: { motion: { subtitle: { type: 'sparkle' } } } } }),
+    /sparkle/,
+  );
+});
+
 test('잘못된 색 형식은 프로파일 해석에서 던진다', () => {
   assert.throws(
     () => resolveProfile({ storyboard: { delivery: { subtitle: { color: 'red' } } } }),

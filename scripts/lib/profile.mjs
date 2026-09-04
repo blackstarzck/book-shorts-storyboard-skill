@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { toAssColor, contrastRatio } from './color.mjs';
+import { MOTIONS } from './motion.mjs';
 
 /**
  * 납품 프로파일 — 자막 좌표와 그로부터 유도되는 값들.
@@ -28,6 +29,11 @@ export const BUILTIN_PROFILES = {
     // webStack: 콘티 시트(HTML)가 자막 폰트를 못 찾았을 때의 폴백.
     // dir: 시스템에 안 깔린 폰트를 쓸 때 ffmpeg 에 넘길 폴더. null 이면 시스템 폰트.
     fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
+    // 자막 애니메이션. none | fade | pop | slide-up (lib/motion.mjs)
+    motion: {
+      subtitle: { type: 'fade', inMs: 120, outMs: 120 },
+      titleCard: { type: 'fade', inMs: 200, outMs: 200 },
+    },
     framing: { cropPerSide: 0 },
   },
 
@@ -44,6 +50,11 @@ export const BUILTIN_PROFILES = {
     },
     titleCard: { size: 96, outline: 8, shadow: 0, align: 'middle-center', marginV: 0 },
     fonts: { webStack: ['Noto Sans KR', 'Apple SD Gothic Neo', 'sans-serif'], dir: null },
+    // 자막 애니메이션. none | fade | pop | slide-up (lib/motion.mjs)
+    motion: {
+      subtitle: { type: 'fade', inMs: 120, outMs: 120 },
+      titleCard: { type: 'fade', inMs: 200, outMs: 200 },
+    },
     framing: { cropPerSide: 0.06 },
   },
 };
@@ -86,6 +97,15 @@ function toAlign(value, where) {
   return n;
 }
 
+/** 효과 이름을 프로파일 해석 단계에서 검증한다. 렌더 도중이 아니라. */
+function checkMotion(m, where) {
+  const type = m?.type ?? 'none';
+  if (!(type in MOTIONS)) {
+    throw new Error(`${where}: 알 수 없는 효과 '${type}'. ${Object.keys(MOTIONS).join(' | ')} 중 하나여야 한다.`);
+  }
+  return type;
+}
+
 /** 좌표·색에서 나오는 값들. 손으로 적어두지 않는다. */
 function derive(p) {
   const usableWidth = p.canvas.width - p.subtitle.marginX * 2;
@@ -123,6 +143,11 @@ function derive(p) {
     align: {
       subtitle: toAlign(sub.align, '자막 정렬'),
       titleCard: toAlign(title.align, '제목 카드 정렬'),
+    },
+    // 효과 이름도 여기서 검증한다 — 렌더 도중에 터지면 스택 트레이스만 나온다
+    motion: {
+      subtitle: checkMotion(p.motion?.subtitle, '자막 효과'),
+      titleCard: checkMotion(p.motion?.titleCard, '제목 카드 효과'),
     },
     cssFontStack,
     assFilter,
